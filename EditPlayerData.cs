@@ -1,5 +1,7 @@
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
+using BTD_Mod_Helper.Api.Components;
+using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using EditPlayerData;
 using EditPlayerData.UI;
@@ -8,6 +10,8 @@ using Il2Cpp;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.Settings;
+using Il2CppAssets.Scripts.Utils;
+using Il2CppSystem;
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -38,20 +42,31 @@ public class EditPlayerData : BloonsTD6Mod
         [HarmonyPostfix]
         internal static void Postfix(SettingsScreen __instance)
         {
-            var profileButton = __instance.profileBtn.transform.parent.gameObject;
+            var panel = __instance.gameObject.FindObject("Panel");
 
-            var editPlayerData = profileButton.Duplicate();
+            var button = panel.AddModHelperPanel(new Info("Edit Data Button", 700),
+                null, RectTransform.Axis.Vertical, 10);
+            button.AddPanel(new Info("Spacing", 150));
+            button.AddButton(new Info("Button", 300), VanillaSprites.SettingsBtn,
+                new System.Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
+            button.AddText(new Info("Text", 700, 100), "Player Data", 80);
+
+            // var profileButton = __instance.profileBtn.transform.parent.gameObject;
+            // __instance.profileBtn.transform.parent.parent.gameObject.AddModHelperPanel(new Info("Spacing", 50));
+
+            // var editPlayerData = profileButton.Duplicate();
             // thought Duplicate was supposed to do this but whatever :/
-            editPlayerData.transform.SetParent(profileButton.transform.parent);
-            editPlayerData.name = "EditPlayerData";
-            
-            var button = editPlayerData.GetComponentInChildren<Button>();
-            button.SetOnClick(() => { ModGameMenu.Open<EditPlayerDataMenu>(); });
-            
-            
-            var text = editPlayerData.GetComponentInChildren<NK_TextMeshProUGUI>();
-            text.AutoLocalize = false;
-            text.text = "Player Data";
+            // editPlayerData.transform.SetParent(profileButton.transform.parent);
+            // editPlayerData.name = "EditPlayerData";
+
+            // editPlayerData.GetComponentInChildren<Button>()
+            // .SetOnClick();
+
+            // editPlayerData.GetComponentInChildren<Image>().SetSprite(VanillaSprites.SettingsBtn);
+
+            // var text = editPlayerData.GetComponentInChildren<NK_TextMeshProUGUI>();
+            // text.AutoLocalize = false;
+            // text.text = "Player Data";
         }
     }
 }
