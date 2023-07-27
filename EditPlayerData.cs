@@ -46,8 +46,8 @@ public class EditPlayerData : BloonsTD6Mod
 
             var button = panel.AddModHelperPanel(new Info("Edit Data Button", 700),
                 null, RectTransform.Axis.Vertical, 10);
-            button.AddPanel(new Info("Spacing", 150));
-            button.AddButton(new Info("Button", 300), VanillaSprites.SettingsBtn,
+            button.AddPanel(new Info("Spacing", 200));
+            button.AddButton(new Info("Button", 285), VanillaSprites.SettingsBtn,
                 new System.Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
             button.AddText(new Info("Text", 700, 100), "Player Data", 80);
         }
