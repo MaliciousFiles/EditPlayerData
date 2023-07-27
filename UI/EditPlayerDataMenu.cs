@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
@@ -255,7 +256,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         GenerateEntries();
         SetPage(0);
 
-        GameMenu.scrollRect.scrollSensitivity = 0.5f;
+        // for no discernible reason, this defaults to 300
+        GameMenu.scrollRect.scrollSensitivity = 50;
         
         return false;
     }
@@ -331,9 +333,12 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     internal class TMP_InputField_KeyPressed
     {
         [HarmonyPrefix]
-        internal static void Prefix(ref Event evt)
+        internal static void Prefix(TMP_InputField __instance, ref Event evt)
         {
-            if (_isOpen && evt.character == '-') evt.character = ' ';
+            if (_isOpen && (evt.character == '-' || !int.TryParse(__instance.text + evt.character, out _)))
+            {
+                evt.character = (char) 0;                
+            }
         }
     }
 }

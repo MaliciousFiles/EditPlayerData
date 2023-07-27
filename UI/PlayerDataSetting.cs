@@ -139,22 +139,6 @@ public abstract class TypedPlayerDataSetting<T> : PlayerDataSetting
     }
 }
 
-public class StringPlayerDataSetting : TypedPlayerDataSetting<string>
-{
-    public StringPlayerDataSetting(string name, string icon, string def, Func<string> getter, Action<string> setter) :
-        base(name, icon, def, getter, setter) { }
-
-    protected override void ShowEditValuePopup(PopupScreen screen)
-    {
-        screen.ShowSetNamePopup("Edit Value", "The new value to set.",
-            new Action<string>(s =>
-            {
-                Setter(s);
-                ReloadVisuals?.Invoke();
-            }), Getter());
-    }
-}
-
 public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
 {
     public NumberPlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) :
@@ -617,8 +601,27 @@ public class InstaMonkeyPlayerDataSetting : PlayerDataSetting
 
     protected override ModHelperComponent GetValue()
     {
-        return ModHelperText.Create(new Info("Value", InfoPreset.FillParent),
-            $"Count: {_getPlayer().GetInstaTowerGroupQuanity(_tower.towerId)}   Collection: {_getPlayer().GetInstaTowers(_tower.towerId).Count} / 64", 70);
+        var panel = ModHelperPanel.Create(new Info("Value", InfoPreset.FillParent),
+            null, RectTransform.Axis.Horizontal, 25);
+        panel.LayoutGroup.childAlignment = TextAnchor.MiddleLeft;
+
+        panel.AddText(new Info("CountLabel") { Flex = 2 }, 
+                "Count:", 60)
+            .Text.alignment = TextAlignmentOptions.Right;
+        panel.AddText(new Info("CountValue") { Flex = 2 },
+            _getPlayer().GetInstaTowerGroupQuanity(_tower.towerId).ToString(), 75)
+            .Text.alignment = TextAlignmentOptions.Left;
+        
+        panel.AddText(new Info("CollectionLabel") { Flex = 3 },
+                "Collection:", 60)
+            .Text.alignment = TextAlignmentOptions.Right;
+        panel.AddText(new Info("CollectionValue") { Flex = 2 },
+                $"{_getPlayer().GetInstaTowers(_tower.towerId).Count} / 64", 75)
+            .Text.alignment = TextAlignmentOptions.Left;
+
+        panel.AddPanel(new Info("Spacing", InfoPreset.Flex));
+
+        return panel;
     }
 
     protected override void ShowEditValuePopup(PopupScreen screen)

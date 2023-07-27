@@ -34,7 +34,7 @@ internal class PlayerDataSettingDisplay : ModHelperPanel
         mainPanel.AddText(new Info("Title")
         {
             Height = 300,
-            FlexWidth = 2
+            FlexWidth = 1
         }, "Name", 85, TextAlignmentOptions.MidlineLeft);
 
         mainPanel.AddPanel(new Info("Value")

@@ -50,23 +50,6 @@ public class EditPlayerData : BloonsTD6Mod
             button.AddButton(new Info("Button", 300), VanillaSprites.SettingsBtn,
                 new System.Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
             button.AddText(new Info("Text", 700, 100), "Player Data", 80);
-
-            // var profileButton = __instance.profileBtn.transform.parent.gameObject;
-            // __instance.profileBtn.transform.parent.parent.gameObject.AddModHelperPanel(new Info("Spacing", 50));
-
-            // var editPlayerData = profileButton.Duplicate();
-            // thought Duplicate was supposed to do this but whatever :/
-            // editPlayerData.transform.SetParent(profileButton.transform.parent);
-            // editPlayerData.name = "EditPlayerData";
-
-            // editPlayerData.GetComponentInChildren<Button>()
-            // .SetOnClick();
-
-            // editPlayerData.GetComponentInChildren<Image>().SetSprite(VanillaSprites.SettingsBtn);
-
-            // var text = editPlayerData.GetComponentInChildren<NK_TextMeshProUGUI>();
-            // text.AutoLocalize = false;
-            // text.text = "Player Data";
         }
     }
 }
