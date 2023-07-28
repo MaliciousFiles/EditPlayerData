@@ -34,15 +34,17 @@ internal class PlayerDataSettingDisplay : ModHelperPanel
         mainPanel.AddText(new Info("Title")
         {
             Height = 300,
-            FlexWidth = 1
+            FlexWidth = 3
         }, "Name", 85, TextAlignmentOptions.MidlineLeft);
+
 
         mainPanel.AddPanel(new Info("Value")
         {
             Height = 300,
-            FlexWidth = 1
+            FlexWidth = 4
         });
-
+        mainPanel.AddPanel(new Info("Spacing", 100));
+        
         panel.AddPanel(new Info("Edit", 225));
         panel.AddButton(new Info("Reset", 225), VanillaSprites.RedBtn, null)
             .AddImage(new Info("ResetIcon", 175), VanillaSprites.RestartIcon);

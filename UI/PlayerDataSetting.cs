@@ -1,10 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
+using EditPlayerData.Utils;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.MapSets;
 using Il2CppAssets.Scripts.Models.Profile;
@@ -14,6 +15,7 @@ using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppNinjaKiwi.Common;
+using Il2CppSystem.Collections.Generic;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -129,8 +131,11 @@ public abstract class TypedPlayerDataSetting<T> : PlayerDataSetting
 
     protected override ModHelperComponent GetValue()
     {
-        return ModHelperText.Create(new Info("ValueText", InfoPreset.FillParent),
+        var text = ModHelperText.Create(new Info("ValueText", InfoPreset.FillParent),
             Getter()+"", 70);
+        text.Text.alignment = TextAlignmentOptions.Right;
+
+        return text;
     }
 
     public override void ResetToDefault()
@@ -184,7 +189,7 @@ public class BoolPlayerDataSetting : TypedPlayerDataSetting<bool>
 
 public class MapPlayerDataSetting : PlayerDataSetting
 {
-    private static readonly Dictionary<string, string[]> Difficulties = new()
+    private static readonly System.Collections.Generic.Dictionary<string, string[]> Difficulties = new()
     {
         { "Easy", new []{ "Standard", "PrimaryOnly", "Deflation" } },
         { "Medium", new []{ "Standard", "MilitaryOnly", "Reverse", "Apopalypse" } },
@@ -362,7 +367,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
     {
         var panel = ModHelperPanel.Create(new Info("Medals", InfoPreset.FillParent),
             null, RectTransform.Axis.Horizontal, 215);
-        panel.LayoutGroup.childAlignment = TextAnchor.MiddleCenter;
+        panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
 
         var easy = panel.AddPanel(new Info("Easy/Bronze"));
         easy.Add(CreateMedal("Standard"));
@@ -467,7 +472,7 @@ public class RankPlayerDataSetting : PlayerDataSetting
     {
         var panel = ModHelperPanel.Create(new Info("XP", InfoPreset.FillParent),
             null, RectTransform.Axis.Horizontal, 50);
-        panel.LayoutGroup.childAlignment = TextAnchor.MiddleCenter;
+        panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
 
         panel.AddImage(new Info("PlayerRank", 250), VanillaSprites.PlayerXPIcon)
             .AddText(new Info("PlayerRankText", 250), _getPlayer().Data.rank.ValueInt.ToString(), 50);
@@ -542,7 +547,7 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
         _getPlayer = getPlayer;
     }
 
-    private IEnumerable<string> GetAllUpgrades()
+    private System.Collections.Generic.IEnumerable<string> GetAllUpgrades()
     {
         var model = Game.instance.model;
 
@@ -579,7 +584,7 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
         }
         
         var text = base.GetValue();
-        text.SetInfo(new Info("ValueText", InfoPreset.Flex));
+        text.SetInfo(new Info("ValueText", 320));
         panel.Add(text);
 
         return panel;
@@ -603,24 +608,55 @@ public class InstaMonkeyPlayerDataSetting : PlayerDataSetting
     {
         var panel = ModHelperPanel.Create(new Info("Value", InfoPreset.FillParent),
             null, RectTransform.Axis.Horizontal, 25);
-        panel.LayoutGroup.childAlignment = TextAnchor.MiddleLeft;
+        panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
 
-        panel.AddText(new Info("CountLabel") { Flex = 2 }, 
+        panel.AddButton(new Info("AddAll", 290, 140), VanillaSprites.GreenBtnLong,
+            new Action(() =>
+            {
+                var tierSet = new System.Collections.Generic.HashSet<int[]>(new TowerTiersEqualityComparer());
+                
+                for (var mainPath = 0; mainPath < 3; mainPath++)
+                {
+                    for (var mainPathTier = 0; mainPathTier <= 5; mainPathTier++)
+                    {
+                        
+                        for (var crossPath = 0; crossPath < 3; crossPath++)
+                        {
+                            for (var crossPathTier = 0; crossPathTier <= 2; crossPathTier++)
+                            {
+                                var tiers = new[] { 0, 0, 0 };
+                                tiers[crossPath] = crossPathTier;
+                                tiers[mainPath] = mainPathTier;
+
+                                tierSet.Add(tiers);
+                            }
+                        }
+                    }
+                }
+                
+                foreach (var tiers in tierSet)
+                {
+                    _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity++;                    
+                }
+
+                ReloadVisuals?.Invoke();
+            })).AddText(new Info("Text", 300, 100), "+1 of Each", 45);
+
+        
+        panel.AddText(new Info("CountLabel") { Flex = 3 }, 
                 "Count:", 60)
             .Text.alignment = TextAlignmentOptions.Right;
-        panel.AddText(new Info("CountValue") { Flex = 2 },
+        panel.AddText(new Info("CountValue") { Flex = 3 },
             _getPlayer().GetInstaTowerGroupQuanity(_tower.towerId).ToString(), 75)
             .Text.alignment = TextAlignmentOptions.Left;
         
-        panel.AddText(new Info("CollectionLabel") { Flex = 3 },
+        panel.AddText(new Info("CollectionLabel") { Flex = 5 },
                 "Collection:", 60)
             .Text.alignment = TextAlignmentOptions.Right;
-        panel.AddText(new Info("CollectionValue") { Flex = 2 },
+        panel.AddText(new Info("CollectionValue") { Flex = 4 },
                 $"{_getPlayer().GetInstaTowers(_tower.towerId).Count} / 64", 75)
             .Text.alignment = TextAlignmentOptions.Left;
-
-        panel.AddPanel(new Info("Spacing", InfoPreset.Flex));
-
+        
         return panel;
     }
 

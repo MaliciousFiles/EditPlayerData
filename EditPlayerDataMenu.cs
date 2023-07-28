@@ -161,7 +161,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                             data.currentTowerGiftUnlockIndex.ValueInt);
                     }
 
-                    if (GameData.Instance.questData.TryGetTowerUnlockData(tower.towerId, out TowerUnlockQuest quest))
+                    if (GameData.Instance.questData.TryGetTowerUnlockData(tower.towerId, out var quest))
                     {
                         Game.Player.GetQuestSaveData(quest.unlockQuestId, out var questData);
                         questData.hasSeenQuest = true;
