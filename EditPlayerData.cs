@@ -1,3 +1,4 @@
+using System;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
@@ -6,16 +7,11 @@ using BTD_Mod_Helper.Extensions;
 using EditPlayerData;
 using EditPlayerData.UI;
 using HarmonyLib;
-using Il2Cpp;
 using Il2CppAssets.Scripts.Models.Profile;
-using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.Settings;
 using Il2CppAssets.Scripts.Utils;
-using Il2CppSystem;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.UI;
 
 [assembly: MelonInfo(typeof(EditPlayerData.EditPlayerData), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
 [assembly: MelonGame("Ninja Kiwi", "BloonsTD6")]
@@ -48,7 +44,7 @@ public class EditPlayerData : BloonsTD6Mod
                 null, RectTransform.Axis.Vertical, 10);
             button.AddPanel(new Info("Spacing", 200));
             button.AddButton(new Info("Button", 285), VanillaSprites.SettingsBtn,
-                new System.Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
+                new Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
             button.AddText(new Info("Text", 700, 100), "Player Data", 80);
         }
     }

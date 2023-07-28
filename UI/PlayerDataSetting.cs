@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
@@ -15,11 +15,12 @@ using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppNinjaKiwi.Common;
-using Il2CppSystem.Collections.Generic;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+
+// ReSharper disable AccessToModifiedClosure
 
 namespace EditPlayerData.UI;
 
@@ -189,7 +190,7 @@ public class BoolPlayerDataSetting : TypedPlayerDataSetting<bool>
 
 public class MapPlayerDataSetting : PlayerDataSetting
 {
-    private static readonly System.Collections.Generic.Dictionary<string, string[]> Difficulties = new()
+    private static readonly Dictionary<string, string[]> Difficulties = new()
     {
         { "Easy", new []{ "Standard", "PrimaryOnly", "Deflation" } },
         { "Medium", new []{ "Standard", "MilitaryOnly", "Reverse", "Apopalypse" } },
@@ -547,7 +548,7 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
         _getPlayer = getPlayer;
     }
 
-    private System.Collections.Generic.IEnumerable<string> GetAllUpgrades()
+    private IEnumerable<string> GetAllUpgrades()
     {
         var model = Game.instance.model;
 
@@ -613,7 +614,7 @@ public class InstaMonkeyPlayerDataSetting : PlayerDataSetting
         panel.AddButton(new Info("AddAll", 290, 140), VanillaSprites.GreenBtnLong,
             new Action(() =>
             {
-                var tierSet = new System.Collections.Generic.HashSet<int[]>(new TowerTiersEqualityComparer());
+                var tierSet = new HashSet<int[]>(new TowerTiersEqualityComparer());
                 
                 for (var mainPath = 0; mainPath < 3; mainPath++)
                 {

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Extensions;
@@ -8,7 +7,6 @@ using Il2CppNinjaKiwi.Common;
 using Il2CppTMPro;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace EditPlayerData.UI;
@@ -45,6 +43,38 @@ public class ModHelperTable : ModHelperPanel
             RectTransform.Axis.Vertical, null, rowSpacing);
         table._content.AddComponent<Image>().color = Color.black;
         table._content.Mask.showMaskGraphic = false;
+        
+        // don't know if this always happens, but at least in the MapPlayerDataSetting usecase, it has a weird visible section above the main
+        // part, so this just hides anything that shouldn't exist
+        table._content.ScrollRect.onValueChanged.AddListener(new Action<Vector2>(_ =>
+        {
+            // for some reason top is negative and bottom is positive, so these are subtraction to get the expected values
+            var viewportTransform = table._content.ScrollRect.viewport;
+            var viewportPos = viewportTransform.position;
+            var viewportRect = viewportTransform.rect;
+            var viewportTop = viewportPos.y - viewportRect.top;
+            var viewportBottom = viewportPos.y - viewportRect.bottom;
+
+            var scrollContent = table._content.ScrollContent.transform;
+            for (var c = 0; c < scrollContent.childCount; c++)
+            {
+                var child = scrollContent.GetChild(c);
+
+                var inputTransform = child.gameObject.GetComponent<RectTransform>();
+                var inputPos = inputTransform!.position;
+                var inputRect = inputTransform.rect;
+                var inputTop = inputPos.y - inputRect.top;
+                var inputBottom = inputPos.y - inputRect.bottom;
+
+                for (var i = 0; i < child.childCount; i++)
+                {
+                    child.GetChild(i).gameObject.SetActive(
+                        (inputBottom < viewportTop && inputBottom > viewportBottom) ||
+                        (inputTop < viewportTop && inputTop > viewportBottom));
+                }
+            }
+        }));
+
 
         return table;
     }
@@ -71,51 +101,14 @@ public class ModHelperTable : ModHelperPanel
 
     public void SetValue(int r, int c, ModHelperComponent value)
     {
-        // due to how masking works with input fields, we need to handle it custom
+        // due to how masking works with input fields, we need to "reload" them
         if (value.GetType() == typeof(ModHelperInputField))
         {
-            var input = value as ModHelperInputField;
-            input!.InputField.onSelect.AddListener(
-                new Action<string>(_ =>
-                {
-                    var caret = input.GetComponentInChildren<TMP_SelectionCaret>();
-                
-                    caret.maskable = false;
-                    caret.RecalculateMasking();
-                }));
-            input.InputField.onDeselect.AddListener(
-                new Action<string>(_ =>
-                {
-                    var caret = input.GetComponentInChildren<TMP_SelectionCaret>();
-                
-                    caret.maskable = true;
-                    caret.RecalculateMasking();
-                }));
-            _content!.ScrollRect.onValueChanged.AddListener(new Action<Vector2>(_ =>
-            {
-                // for some reason top is negative and bottom is positive, so these are subtraction to get the expected values
-                var viewportTransform = _content.ScrollRect.viewport;
-                var viewportPos = viewportTransform.position;
-                var viewportRect = viewportTransform.rect;
-                var viewportTop = viewportPos.y - viewportRect.top;
-                var viewportBottom = viewportPos.y - viewportRect.bottom;
-                
-                var inputTransform = input.RectTransform;
-                var inputPos = inputTransform.position;
-                var inputRect = inputTransform.rect;
-                var inputTop = inputPos.y - inputRect.top;
-                var inputBottom = inputPos.y - inputRect.bottom;
+            value.SetActive(false);
+            value.SetActive(true);
 
-                input.Text.Text.maskable = !(inputTop < viewportTop && inputBottom > viewportBottom);
-                
-                var caret = input.GetComponentInChildren<TMP_SelectionCaret>();
-                if (caret == null) return;
-                
-                caret.maskable = false;
-                caret.RecalculateMasking();
-            }));
         }
-        
+
         if (c > _columns) SetNumColumns(c);
         for (var i = _rows.Count-1; i < r; i++) AddRow();
         

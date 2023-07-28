@@ -1,6 +1,5 @@
 ﻿using System;
 using BTD_Mod_Helper.Api.Components;
-using Il2CppSystem.Net;
 using MelonLoader;
 using UnityEngine;
 
@@ -21,7 +20,7 @@ public class ModHelperTableRow : ModHelperPanel
         float spacing = 0.0f,
         int padding = 0)
     {
-        var row = ModHelperPanel.Create<ModHelperTableRow>(info, backgroundSprite, layoutAxis, spacing, padding);
+        var row = Create<ModHelperTableRow>(info, backgroundSprite, layoutAxis, spacing, padding);
         row.Row = rowIdx;
 
         return row;
