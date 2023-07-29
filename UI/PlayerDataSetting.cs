@@ -199,11 +199,19 @@ public class MapPlayerDataSetting : PlayerDataSetting
 
     private const float MapIconWidthToHeightRatio = 532f / 826f;
 
+    private readonly MapDetails _details;
     private readonly MapInfo _map;
 
+    public Action? ReloadAllVisuals
+    {
+        set;
+        private get;
+    }
+    
     public MapPlayerDataSetting(MapDetails details, MapInfo map) :
         base(LocalizationManager.Instance.Format(details.id), details.mapSprite.GUID)
     {
+        _details = details;
         _map = map;
     }
 
@@ -233,6 +241,8 @@ public class MapPlayerDataSetting : PlayerDataSetting
         ModHelperTable? settings = null;
         Action<char>? tabListener = null;
 
+        var affectedValue = 0;
+
         var popup = screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Edit Value", 
             "Edit each game-mode's settings",
             new Action(() =>
@@ -247,13 +257,23 @@ public class MapPlayerDataSetting : PlayerDataSetting
                     var wins = int.Parse(row.GetDescendent<ModHelperInputField>("WinCount").CurrentValue[..^1]);
                     var noExit = row.GetDescendent<ModHelperCheckbox>("NoExit").CurrentValue;
 
-                    var mapMode = _map.GetOrCreateDifficulty(difficulty).GetOrCreateMode(mode, false);
 
-                    mapMode.timesCompleted = wins;
-                    mapMode.completedWithoutLoadingSave = noExit;
+                    foreach (var mapMode in (affectedValue switch
+                             {
+                                 0 => new[] { _details }.ToList(),
+                                 1 => GameData.Instance.mapSet.GetMapsForDifficulty(_details.difficulty).ToList(),
+                                 2 => GameData.Instance.mapSet.maps.ToList(),
+                                 _ => new List<MapDetails>()
+                             }).Select(map =>
+                                 Game.Player.Data.mapInfo.GetMap(map.id).GetOrCreateDifficulty(difficulty)
+                                     .GetOrCreateMode(mode, false))) 
+                    {
+                        mapMode.timesCompleted = wins;
+                        mapMode.completedWithoutLoadingSave = noExit;
+                    }
                 }
-                
-                ReloadVisuals?.Invoke();
+
+                ReloadAllVisuals();
             }), "Ok", new Action(() => { Keyboard.current.remove_onTextInput(tabListener!); }), "Cancel",
             Popup.TransitionAnim.Scale, PopupScreen.BackGround.Grey).WaitForCompletion().FindObject("Layout");
         
@@ -355,8 +375,22 @@ public class MapPlayerDataSetting : PlayerDataSetting
             }
         }
         
-        popup.AddModHelperPanel(new Info("Spacing", 175)).
+        var affected = popup.AddModHelperPanel(new Info("Affected", 1500, 125),
+            null, RectTransform.Axis.Horizontal);
+        affected.AddText(new Info("Label", 575), "Affected Map(s): ", 60);
+        affected.AddDropdown(new Info("Options", 790, 125),
+            new[] { "Current Map", $"All {_details.difficulty} Maps", "All Maps" }.ToIl2CppList(), 400,
+            new Action<int>(value =>
+            {
+                affectedValue = value;
+            }), VanillaSprites.BlueInsertPanelRound, 50);
+        affected.transform.MoveAfterSibling(settings.transform, true);
+
+        popup.AddModHelperPanel(new Info("Spacing", 120)).
             transform.MoveAfterSibling(settings.transform, true);
+        
+        popup.AddModHelperPanel(new Info("Spacing", 90)).
+            transform.MoveAfterSibling(affected.transform, true);
         
         var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("HintText", settings.RectTransform.rect.width, 100),
             "Press TAB to navigate quickly!", 50));

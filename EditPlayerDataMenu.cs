@@ -300,6 +300,10 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             }
             else
             {
+                if (settings[idx].GetType() == typeof(MapPlayerDataSetting))
+                {
+                    ((MapPlayerDataSetting) settings[idx]).ReloadAllVisuals = UpdateVisibleEntries;
+                }
                 entry.SetSetting(settings[idx]);
                 entry.SetActive(true);
             }
