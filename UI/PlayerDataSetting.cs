@@ -648,34 +648,38 @@ public class InstaMonkeyPlayerDataSetting : PlayerDataSetting
         panel.AddButton(new Info("AddAll", 290, 140), VanillaSprites.GreenBtnLong,
             new Action(() =>
             {
-                var tierSet = new HashSet<int[]>(new TowerTiersEqualityComparer());
-                
-                for (var mainPath = 0; mainPath < 3; mainPath++)
-                {
-                    for (var mainPathTier = 0; mainPathTier <= 5; mainPathTier++)
+                PopupScreen.instance.ShowSetValuePopup("Amount to Add", "Input the number of instas to add of each type.",
+                    new Action<int>(n =>
                     {
-                        
-                        for (var crossPath = 0; crossPath < 3; crossPath++)
+                        var tierSet = new HashSet<int[]>(new TowerTiersEqualityComparer());
+                
+                        for (var mainPath = 0; mainPath < 3; mainPath++)
                         {
-                            for (var crossPathTier = 0; crossPathTier <= 2; crossPathTier++)
+                            for (var mainPathTier = 0; mainPathTier <= 5; mainPathTier++)
                             {
-                                var tiers = new[] { 0, 0, 0 };
-                                tiers[crossPath] = crossPathTier;
-                                tiers[mainPath] = mainPathTier;
+                        
+                                for (var crossPath = 0; crossPath < 3; crossPath++)
+                                {
+                                    for (var crossPathTier = 0; crossPathTier <= 2; crossPathTier++)
+                                    {
+                                        var tiers = new[] { 0, 0, 0 };
+                                        tiers[crossPath] = crossPathTier;
+                                        tiers[mainPath] = mainPathTier;
 
-                                tierSet.Add(tiers);
+                                        tierSet.Add(tiers);
+                                    }
+                                }
                             }
                         }
-                    }
-                }
                 
-                foreach (var tiers in tierSet)
-                {
-                    _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity++;                    
-                }
+                        foreach (var tiers in tierSet)
+                        {
+                            _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity += n;                    
+                        }
 
-                ReloadVisuals?.Invoke();
-            })).AddText(new Info("Text", 300, 100), "+1 of Each", 45);
+                        ReloadVisuals?.Invoke();
+                    }), 1);
+            })).AddText(new Info("Text", 300, 100), "Add All", 45);
 
         
         panel.AddText(new Info("CountLabel") { Flex = 3 }, 
