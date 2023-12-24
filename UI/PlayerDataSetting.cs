@@ -261,8 +261,8 @@ public class MapPlayerDataSetting : PlayerDataSetting
                     foreach (var mapMode in (affectedValue switch
                              {
                                  0 => new[] { _details }.ToList(),
-                                 1 => GameData.Instance.mapSet.GetMapsForDifficulty(_details.difficulty).ToList(),
-                                 2 => GameData.Instance.mapSet.maps.ToList(),
+                                 1 => GameData.Instance.mapSet.GetStandardMapsForDifficulty(_details.difficulty).ToList(),
+                                 2 => GameData.Instance.mapSet.StandardMaps.ToList(),
                                  _ => new List<MapDetails>()
                              }).Select(map =>
                                  Game.Player.Data.mapInfo.GetMap(map.id).GetOrCreateDifficulty(difficulty)

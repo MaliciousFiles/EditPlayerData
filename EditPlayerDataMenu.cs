@@ -114,7 +114,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
     public static void InitSettings(ProfileModel data)
     {
-        foreach (var details in GameData.Instance.mapSet.maps)
+        foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
             Settings["Maps"].Add(new MapPlayerDataSetting(details, data.mapInfo.GetMap(details.id))
                 .Unlockable(
