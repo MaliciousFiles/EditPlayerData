@@ -173,7 +173,6 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                                  .ToList()
                                  .Where(quest => quest.towerId == tower.towerId))
                     {
-                        ModHelper.Msg<EditPlayerData>("found quest");
                         var questData = Game.Player.GetQuestSaveData(quest.unlockQuestId);
                         
                         questData.hasSeenQuest = true;
