@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
@@ -7,6 +8,7 @@ using BTD_Mod_Helper.Extensions;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
+using Il2CppAssets.Scripts.Data.Quests;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
@@ -14,12 +16,18 @@ using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Achievements;
 using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
 using Il2CppNinjaKiwi.Common;
+using Il2CppNinjaKiwi.LiNK.DataModels;
+using Il2CppNinjaKiwi.LiNK.Endpoints;
 using Il2CppSystem;
+using Il2CppSystem.Runtime.InteropServices;
+using Il2CppSystem.Threading.Tasks;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Action = System.Action;
+using ArgumentException = System.ArgumentException;
 using Object = Il2CppSystem.Object;
+using OutAttribute = System.Runtime.InteropServices.OutAttribute;
 
 namespace EditPlayerData.UI;
 
@@ -157,20 +165,41 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                         data.currentTowerGiftUnlockIndex.Value = Math.Max(
                             giftGoals.GetGoalDefForTowerId(tower.towerId).index,
                             data.currentTowerGiftUnlockIndex.ValueInt);
+                        data.currentTowerGiftProgress.Value = giftGoals.GetCurrentGoal();
+                        giftGoals.CompleteGoal();
                     }
 
-                    if (GameData.Instance.questData.TryGetTowerUnlockData(tower.towerId, out var quest))
+                    foreach (var quest in Game.instance.questTrackerManager.QuestData.TowerUnlockQuestsContainer.items
+                                 .ToList()
+                                 .Where(quest => quest.towerId == tower.towerId))
                     {
-                        Game.Player.GetQuestSaveData(quest.unlockQuestId, out var questData);
+                        ModHelper.Msg<EditPlayerData>("found quest");
+                        var questData = Game.Player.GetQuestSaveData(quest.unlockQuestId);
+                        
                         questData.hasSeenQuest = true;
                         questData.hasSeenQuestCompleteDialogue = true;
                         questData.hasCollectedRewards = true;
 
+                        foreach (var part in questData.questPartSaveData)
+                        {
+                            part.hasSeenQuestPart = true;
+                            part.hasSeenQuestCompleteDialogue = true;
+                            part.hasCollectedRewards = true;
+                            part.completed = true;
+                            
+                            foreach (var task in part.tasksSaveData)
+                            {
+                                task.hasCollectedRewards = true;
+                                task.completed = true;
+                            }
+                        }
                         foreach (var task in questData.tasksSaveData)
                         {
                             task.hasCollectedRewards = true;
                             task.completed = true;
                         }
+                        
+                        Game.Player.SetQuestSaveData(questData);
                     }
                 }));
             
