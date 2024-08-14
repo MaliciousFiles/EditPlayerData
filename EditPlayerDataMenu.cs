@@ -92,12 +92,6 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     VanillaSprites.CollectionEventLootIconEaster, 0,
                     () => GetPlayer().Data.collectionEventCratesOpened,
                     t => GetPlayer().Data.collectionEventCratesOpened = t),
-                new NumberPlayerDataSetting("Bronze Medals", VanillaSprites.MedalBronze, 0,
-                    () => GetPlayer().Data.bronzeKeys, t => GetPlayer().Data.bronzeKeys = t),
-                new NumberPlayerDataSetting("Silver Medals", VanillaSprites.MedalSilver, 0,
-                    () => GetPlayer().Data.silverKeys, t => GetPlayer().Data.silverKeys = t),
-                new NumberPlayerDataSetting("Gold Medals", VanillaSprites.MedalGold, 0,
-                    () => GetPlayer().Data.goldKeys, t => GetPlayer().Data.goldKeys = t),
                 new NumberPlayerDataSetting("Golden Bloons Popped", VanillaSprites.GoldenBloonIcon, 0,
                     () => GetPlayer().Data.goldenBloonsPopped, t => GetPlayer().Data.goldenBloonsPopped = t),
             }
@@ -157,18 +151,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 () => !data.unlockedTowers.Contains(tower.towerId),
                 () =>
                 {
+                    Game.instance.towerGoalUnlockManager.CompleteGoalForTower(tower.towerId);
                     data.UnlockTower(tower.towerId);
-
-                    var giftGoals = Game.instance.towerGiftUnlockGoals;
-                    if (giftGoals.IsTowerUnlockedThroughGift(tower.towerId))
-                    {
-                        data.currentTowerGiftUnlockIndex.Value = Math.Max(
-                            giftGoals.GetGoalDefForTowerId(tower.towerId).index,
-                            data.currentTowerGiftUnlockIndex.ValueInt);
-                        data.currentTowerGiftProgress.Value = giftGoals.GetCurrentGoal();
-                        giftGoals.CompleteGoal();
-                    }
-
+                    
                     foreach (var quest in Game.instance.questTrackerManager.QuestData.TowerUnlockQuestsContainer.items
                                  .ToList()
                                  .Where(quest => quest.towerId == tower.towerId))
