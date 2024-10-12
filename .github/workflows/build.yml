@@ -9,14 +9,14 @@ on:
 
 env:
   PROJECT_NAME: EditPlayerData
-  MELONLOADER_BRANCH: alpha-development
   
   MOD_HELPER_NAME: Btd6ModHelper
   BLOONSTD6: ./BloonsTD6
 
 jobs:
   build:
-    
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
@@ -98,9 +98,9 @@ jobs:
 
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v2
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 6.0.x # net6 can still build older as well
+          dotnet-version: 8.0.x
 
 
       - name: Build
@@ -108,7 +108,7 @@ jobs:
 
 
       - name: Upload Mod DLL
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ env.PROJECT_NAME }}.dll
           path: ${{ env.BLOONSTD6 }}/Mods/${{ env.PROJECT_NAME }}.dll
