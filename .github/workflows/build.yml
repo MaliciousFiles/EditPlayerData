@@ -94,7 +94,7 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             choco install -y wget
           fi
-          wget https://raw.githubusercontent.com/gurrenm3/BTD-Mod-Helper/master/BloonsTD6%20Mod%20Helper/btd6.targets
+          wget https://raw.githubusercontent.com/MaliciousFiles/EditPlayerData/master/btd6.targets
 
 
       - name: Setup .NET
