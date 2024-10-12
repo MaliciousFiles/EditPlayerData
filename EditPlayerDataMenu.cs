@@ -8,16 +8,19 @@ using BTD_Mod_Helper.Extensions;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
+using Il2CppAssets.Scripts.Data.Accolades;
 using Il2CppAssets.Scripts.Data.Quests;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
+using Il2CppAssets.Scripts.Unity.Network;
 using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Achievements;
 using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
 using Il2CppNinjaKiwi.Common;
 using Il2CppNinjaKiwi.LiNK.DataModels;
 using Il2CppNinjaKiwi.LiNK.Endpoints;
+using Il2CppNinjaKiwi.GUTS;
 using Il2CppSystem;
 using Il2CppSystem.Runtime.InteropServices;
 using Il2CppSystem.Threading.Tasks;
@@ -41,6 +44,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 new BoolPlayerDataSetting("Unlocked Double Cash", VanillaSprites.DoubleCashModeShop, false,
                     () => GetPlayer().Data.purchase.purchasedDoubleCashMode,
                     t => GetPlayer().Data.purchase.purchasedDoubleCashMode = t),
+                new BoolPlayerDataSetting("Unlocked Fast Track", VanillaSprites.FastTrackModeIcon, false,
+                    () => GetPlayer().Data.unlockedFastTrack,
+                    t => GetPlayer().Data.unlockedFastTrack = t),
                 new NumberPlayerDataSetting("Monkey Money", VanillaSprites.MonkeyMoneyShop, 0,
                     () => GetPlayer().Data.monkeyMoney.ValueInt, t => GetPlayer().Data.monkeyMoney.Value = t),
                 new NumberPlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,

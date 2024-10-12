@@ -210,7 +210,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
     }
     
     public MapPlayerDataSetting(MapDetails details, MapInfo map) :
-        base(LocalizationManager.Instance.Format(details.id), details.mapSprite.GUID)
+        base(LocalizationManager.Instance.Format(details.id), details.mapSprite.AssetGUID)
     {
         _details = details;
         _map = map;
@@ -782,7 +782,7 @@ public class InstaMonkeyPlayerDataSetting : PlayerDataSetting
                 input.SetText(_getPlayer().GetInstaTower(_tower.towerId, currentTiers).Quantity.ToString());
                 sprite.Image.SetSprite(Game.instance.model
                     .GetTower(_tower.towerId, currentTiers[0], currentTiers[1], currentTiers[2])
-                    .instaIcon.GUID);
+                    .instaIcon.AssetGUID);
 
                 for (var j = 0; j < tiersPanel.transform.childCount; j++)
                 {
