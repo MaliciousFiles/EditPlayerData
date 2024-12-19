@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using EditPlayerData.Utils;
+using HarmonyLib;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.MapSets;
 using Il2CppAssets.Scripts.Models.Profile;
@@ -51,7 +53,7 @@ public abstract class PlayerDataSetting
         if (!_unlockable || !_isLocked!())
         {
             return ModHelperButton.Create(new Info("Edit", InfoPreset.FillParent), VanillaSprites.EditBtn,
-                new Action(() => 
+                new Action(() =>
                 {
                     PopupScreen.instance.SafelyQueue(ShowEditValuePopup);
                 }));
@@ -150,7 +152,8 @@ public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
 {
     public NumberPlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) :
         base(name, icon, def, getter, setter) { }
-    
+
+    private static bool _isShown;
     protected override void ShowEditValuePopup(PopupScreen screen)
     {
         screen.ShowSetValuePopup("Edit Value", "The new value to set.",
@@ -159,6 +162,23 @@ public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
                 Setter(n);
                 ReloadVisuals?.Invoke();
             }), Getter());
+        _isShown = true;
+        ModHelper.Msg<EditPlayerData>("showing");
+    }
+
+    [HarmonyPatch(typeof(Popup), nameof(Popup.ShowPopup))]
+    // ReSharper disable once InconsistentNaming
+    internal class Popup_ShowPopup
+    {
+        [HarmonyPrefix]
+        internal static void Prefix()
+        {
+            if (!_isShown) return;
+            _isShown = false;
+
+
+            PopupScreen.instance.GetTMP_InputField().characterLimit = 15;
+        }
     }
 }
 
