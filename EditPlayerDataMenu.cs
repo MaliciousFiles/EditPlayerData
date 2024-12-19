@@ -213,10 +213,11 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         }
     }
 
-    private int LastPage => (Settings[_category].Count-1) / EntriesPerPage;
+    private int LastPage => (Settings[_category].Count(s => s.Name.ContainsIgnoreCase(_searchValue))-1) / EntriesPerPage;
 
     private readonly PlayerDataSettingDisplay[] _entries = new PlayerDataSettingDisplay[EntriesPerPage];
 
+    private static TMP_InputField? _searchInput;
     private string _searchValue = "";
     private string _category = "General";
     private int _pageIdx;
@@ -266,7 +267,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 SetPage(0);
             }), VanillaSprites.BlueInsertPanelRound, 80f);
         _topArea.AddPanel(new Info("Spacing", InfoPreset.Flex));
-        _topArea.AddInputField(new Info("Search", 1500, 150), _searchValue,
+        _searchInput = _topArea.AddInputField(new Info("Search", 1500, 150), _searchValue,
             VanillaSprites.BlueInsertPanelRound,
             new System.Action<string>(s =>
             {
@@ -275,7 +276,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             }),
             80f, TMP_InputField.CharacterValidation.None,
             TextAlignmentOptions.CaplineLeft, "Search...",
-            50);
+            50).InputField;
         
         _topArea.AddPanel(new Info("Spacing", InfoPreset.Flex));
         
@@ -323,7 +324,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         _topArea.GetDescendent<ModHelperPanel>("UnlockAll Filler").SetActive(!anyUnlockable);
 
         var settings = Settings[_category].FindAll(s => s.Name.ContainsIgnoreCase(_searchValue));
-
+        SetPage(_pageIdx, false);
+        
         for (var i = 0; i < EntriesPerPage; i++)
         {
             var idx = _pageIdx * EntriesPerPage + i;
@@ -345,7 +347,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         }
     }
 
-    private void SetPage(int page)
+    private void SetPage(int page, bool updateEntries=true)
     {
         if (_pageIdx != page) GameMenu.scrollRect.verticalNormalizedPosition = 1f;
         _pageIdx = Mathf.Clamp(page, 0, LastPage);
@@ -356,9 +358,11 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         GameMenu.firstPageBtn.interactable = GameMenu.previousPageBtn.interactable = _pageIdx > 0;
         GameMenu.lastPageBtn.interactable = GameMenu.nextPageBtn.interactable = _pageIdx < LastPage;
 
-        MenuManager.instance.buttonClick2Sound.Play("ClickSounds");
-
-        UpdateVisibleEntries();
+        if (updateEntries)
+        {
+            MenuManager.instance.buttonClick2Sound.Play("ClickSounds");
+            UpdateVisibleEntries();            
+        }
     }
 
     private void RemoveChild(string name)
@@ -373,7 +377,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         [HarmonyPrefix]
         internal static void Prefix(TMP_InputField __instance, ref Event evt)
         {
-            if (_isOpen && (evt.character == '-' || !int.TryParse(__instance.text + evt.character, out _)))
+            if (_isOpen && __instance != _searchInput && (evt.character == '-' || !int.TryParse(__instance.text + evt.character, out _)))
             {
                 evt.character = (char) 0;                
             }
