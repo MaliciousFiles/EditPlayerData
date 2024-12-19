@@ -244,7 +244,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             }, layoutAxis: RectTransform.Axis.Horizontal, padding: 50);
 
         _topArea.AddDropdown(new Info("Category", 650, 150),
-            Settings.Keys.ToIl2CppList(), 600, new System.Action<int>(i =>
+            Settings.Keys.ToIl2CppList(), 1000, new System.Action<int>(i =>
             {
                 _category = Settings.Keys.ElementAt(i);
                 SetPage(0);
