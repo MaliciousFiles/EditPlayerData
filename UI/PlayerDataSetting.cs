@@ -10,6 +10,7 @@ using EditPlayerData.Utils;
 using HarmonyLib;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.MapSets;
+using Il2CppAssets.Scripts.Data.TrophyStore;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.TowerSets;
 using Il2CppAssets.Scripts.Unity;
@@ -163,7 +164,6 @@ public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
                 ReloadVisuals?.Invoke();
             }), Getter());
         _isShown = true;
-        ModHelper.Msg<EditPlayerData>("showing");
     }
 
     [HarmonyPatch(typeof(Popup), nameof(Popup.ShowPopup))]
@@ -177,7 +177,7 @@ public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
             _isShown = false;
 
 
-            PopupScreen.instance.GetTMP_InputField().characterLimit = 15;
+            PopupScreen.instance.GetTMP_InputField().characterLimit = 9;
         }
     }
 }

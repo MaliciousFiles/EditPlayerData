@@ -10,7 +10,9 @@ using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.Accolades;
 using Il2CppAssets.Scripts.Data.Quests;
+using Il2CppAssets.Scripts.Data.TrophyStore;
 using Il2CppAssets.Scripts.Models.Profile;
+using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.Network;
@@ -22,6 +24,7 @@ using Il2CppNinjaKiwi.LiNK.DataModels;
 using Il2CppNinjaKiwi.LiNK.Endpoints;
 using Il2CppNinjaKiwi.GUTS;
 using Il2CppSystem;
+using Il2CppSystem.Linq;
 using Il2CppSystem.Runtime.InteropServices;
 using Il2CppSystem.Threading.Tasks;
 using Il2CppTMPro;
@@ -103,6 +106,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             }
         },
         {
+            "Trophy Store", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values             
+        },
+        {
             "Maps", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
@@ -122,6 +128,16 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
     public static void InitSettings(ProfileModel data)
     {
+        foreach (var item in GameData.Instance.trophyStoreItems.GetAllItems())
+        {
+            Settings["Trophy Store"].Add(new BoolPlayerDataSetting(item.GetLocalizedShortName(), item.icon.AssetGUID, false,
+                () => Game.Player.EnabledTrophyStoreItems().Contains(item.id),
+                val => Game.Player.Data.trophyStorePurchasedItems[item.id].enabled = val
+                ).Unlockable(
+                    () => !Game.Player.Data.trophyStorePurchasedItems.ContainsKey(item.id), 
+                    () => Game.Player.AddTrophyStoreItem(item.id)));
+        }
+        
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
             Settings["Maps"].Add(new MapPlayerDataSetting(details, data.mapInfo.GetMap(details.id))
