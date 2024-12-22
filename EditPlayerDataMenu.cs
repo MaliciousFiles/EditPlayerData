@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
@@ -8,32 +9,24 @@ using BTD_Mod_Helper.Extensions;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
-using Il2CppAssets.Scripts.Data.Accolades;
-using Il2CppAssets.Scripts.Data.Quests;
-using Il2CppAssets.Scripts.Data.TrophyStore;
+using Il2CppAssets.Scripts.Data.Boss;
 using Il2CppAssets.Scripts.Models.Profile;
+using Il2CppAssets.Scripts.Models.Store;
 using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
-using Il2CppAssets.Scripts.Unity.Network;
 using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Achievements;
 using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
+using Il2CppAssets.Scripts.Utils;
 using Il2CppNinjaKiwi.Common;
-using Il2CppNinjaKiwi.LiNK.DataModels;
-using Il2CppNinjaKiwi.LiNK.Endpoints;
-using Il2CppNinjaKiwi.GUTS;
-using Il2CppSystem;
 using Il2CppSystem.Linq;
-using Il2CppSystem.Runtime.InteropServices;
-using Il2CppSystem.Threading.Tasks;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Action = System.Action;
-using ArgumentException = System.ArgumentException;
+using Enum = System.Enum;
 using Object = Il2CppSystem.Object;
-using OutAttribute = System.Runtime.InteropServices.OutAttribute;
 
 namespace EditPlayerData.UI;
 
@@ -55,9 +48,16 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 new NumberPlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,
                     () => GetPlayer().Data.knowledgePoints.ValueInt, t => GetPlayer().Data.knowledgePoints.Value = t),
                 new RankPlayerDataSetting(GetPlayer),
+                
                 new NumberPlayerDataSetting("Trophies", VanillaSprites.TrophyIcon, 0,
                     () => GetPlayer().Data.trophies.ValueInt,
                     t => GetPlayer().GainTrophies(t - GetPlayer().Data.trophies.ValueInt, "")),
+                new NumberPlayerDataSetting("Games Won", VanillaSprites.ConfettiIcon, 0,
+                    () => GetPlayer().Data.completedGame, t => GetPlayer().Data.completedGame = t),
+                new NumberPlayerDataSetting("Highest Seen Round", VanillaSprites.BadBloonIcon, 0,
+                    () => GetPlayer().Data.highestSeenRound, t => GetPlayer().Data.highestSeenRound = t),
+                new NumberPlayerDataSetting("Continues", VanillaSprites.ContinueIcon, 0,
+                    () => GetPlayer().Data.continuesUsed.ValueInt, t => GetPlayer().Data.continuesUsed.Value = t),
                 new BoolPlayerDataSetting("Unlocked Big Bloons", VanillaSprites.BigBloonModeIcon, false,
                     () => GetPlayer().Data.unlockedBigBloons, t => GetPlayer().Data.unlockedBigBloons = t),
                 new BoolPlayerDataSetting("Unlocked Small Bloons", VanillaSprites.SmallBloonModeIcon, false,
@@ -66,14 +66,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     () => GetPlayer().Data.unlockedBigTowers, t => GetPlayer().Data.unlockedBigTowers = t),
                 new BoolPlayerDataSetting("Unlocked Small Monkeys", VanillaSprites.SmallMonkeysModeIcon, false,
                     () => GetPlayer().Data.unlockedSmallTowers, t => GetPlayer().Data.unlockedSmallTowers = t),
-                new NumberPlayerDataSetting("Continues", VanillaSprites.ContinueIcon, 0,
-                    () => GetPlayer().Data.continuesUsed.ValueInt, t => GetPlayer().Data.continuesUsed.Value = t),
-                new NumberPlayerDataSetting("Completed Games", VanillaSprites.ConfettiIcon, 0,
-                    () => GetPlayer().Data.completedGame, t => GetPlayer().Data.completedGame = t),
-                new NumberPlayerDataSetting("Highest Seen Round", VanillaSprites.BadBloonIcon, 0,
-                    () => GetPlayer().Data.highestSeenRound, t => GetPlayer().Data.highestSeenRound = t),
-                new NumberPlayerDataSetting("Challenges Played", VanillaSprites.ChallengesIcon, 0,
-                    () => GetPlayer().Data.challengesPlayed.ValueInt, t => GetPlayer().Data.challengesPlayed.Value = t),
+                
                 new NumberPlayerDataSetting("Challenges Shared", VanillaSprites.CreateChallengesIcon, 0,
                     () => GetPlayer().Data.challengesShared.ValueInt, t => GetPlayer().Data.challengesShared.Value = t),
                 new NumberPlayerDataSetting("Challenges Played", VanillaSprites.ChallengesIcon, 0,
@@ -86,6 +79,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     t => GetPlayer().Data.currentTowerGiftProgress.Value = t),
                 new NumberPlayerDataSetting("Daily Reward Index", VanillaSprites.DailyChestIcon, 0,
                     () => GetPlayer().Data.dailyRewardIndex, t => GetPlayer().Data.dailyRewardIndex = t),
+                
                 new NumberPlayerDataSetting("Total Daily Challenges Completed", VanillaSprites.ChallengeTrophyIcon, 0,
                     () => GetPlayer().Data.totalDailyChallengesCompleted,
                     t => GetPlayer().Data.totalDailyChallengesCompleted = t),
@@ -101,6 +95,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     VanillaSprites.CollectionEventLootIconEaster, 0,
                     () => GetPlayer().Data.collectionEventCratesOpened,
                     t => GetPlayer().Data.collectionEventCratesOpened = t),
+                
                 new NumberPlayerDataSetting("Golden Bloons Popped", VanillaSprites.GoldenBloonIcon, 0,
                     () => GetPlayer().Data.goldenBloonsPopped, t => GetPlayer().Data.goldenBloonsPopped = t),
             }
@@ -112,6 +107,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Maps", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
+            "Maps - Coop", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
             "Tower XP", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
@@ -119,6 +117,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         },
         {
             "Instas", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
+            "Online Modes", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         }
     };
 
@@ -128,27 +129,40 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
     public static void InitSettings(ProfileModel data)
     {
+        Settings["Trophy Store"].Clear();
+        Settings["Maps"].Clear();
+        Settings["Maps - Coop"].Clear();
+        Settings["Tower XP"].Clear();
+        Settings["Powers"].Clear();
+        Settings["Instas"].Clear();
+        Settings["Online Modes"].Clear();
+        
         foreach (var item in GameData.Instance.trophyStoreItems.GetAllItems())
         {
-            Settings["Trophy Store"].Add(new BoolPlayerDataSetting(item.GetLocalizedShortName(), item.icon.AssetGUID, false,
+            Settings["Trophy Store"].Add(new BoolPlayerDataSetting(item.GetLocalizedShortName(), item.icon.AssetGUID,
+                false,
                 () => Game.Player.EnabledTrophyStoreItems().Contains(item.id),
                 val => Game.Player.Data.trophyStorePurchasedItems[item.id].enabled = val
-                ).Unlockable(
-                    () => !Game.Player.Data.trophyStorePurchasedItems.ContainsKey(item.id), 
-                    () => Game.Player.AddTrophyStoreItem(item.id)));
+            ).Unlockable(
+                () => !Game.Player.Data.trophyStorePurchasedItems.ContainsKey(item.id),
+                () => Game.Player.AddTrophyStoreItem(item.id)));
         }
-        
+
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
-            Settings["Maps"].Add(new MapPlayerDataSetting(details, data.mapInfo.GetMap(details.id))
+            Settings["Maps"].Add(new MapPlayerDataSetting(details, data.mapInfo.GetMap(details.id), false)
                 .Unlockable(
-                    () => !data.mapInfo.IsMapUnlocked(details.id), 
+                    () => !data.mapInfo.IsMapUnlocked(details.id),
+                    () => data.mapInfo.UnlockMap(details.id)));
+            Settings["Maps - Coop"].Add(new MapPlayerDataSetting(details, data.mapInfo.GetMap(details.id), true)
+                .Unlockable(
+                    () => !data.mapInfo.IsMapUnlocked(details.id),
                     () => data.mapInfo.UnlockMap(details.id)));
         }
 
         foreach (var power in Game.instance.model.powers)
         {
-            if (power.name is "CaveMonkey" or "DungeonStatue") continue;
+            if (power.name is "CaveMonkey" or "DungeonStatue" or "SpookyCreature") continue;
 
             Settings["Powers"].Add(new NumberPlayerDataSetting(
                 LocalizationManager.Instance.Format(power.name),
@@ -175,13 +189,13 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 {
                     Game.instance.towerGoalUnlockManager.CompleteGoalForTower(tower.towerId);
                     data.UnlockTower(tower.towerId);
-                    
+
                     foreach (var quest in Game.instance.questTrackerManager.QuestData.TowerUnlockQuestsContainer.items
                                  .ToList()
                                  .Where(quest => quest.towerId == tower.towerId))
                     {
                         var questData = Game.Player.GetQuestSaveData(quest.unlockQuestId);
-                        
+
                         questData.hasSeenQuest = true;
                         questData.hasSeenQuestCompleteDialogue = true;
                         questData.hasCollectedRewards = true;
@@ -192,24 +206,169 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                             part.hasSeenQuestCompleteDialogue = true;
                             part.hasCollectedRewards = true;
                             part.completed = true;
-                            
+
                             foreach (var task in part.tasksSaveData)
                             {
                                 task.hasCollectedRewards = true;
                                 task.completed = true;
                             }
                         }
+
                         foreach (var task in questData.tasksSaveData)
                         {
                             task.hasCollectedRewards = true;
                             task.completed = true;
                         }
-                        
+
                         Game.Player.SetQuestSaveData(questData);
                     }
                 }));
-            
+
             Settings["Instas"].Add(new InstaMonkeyPlayerDataSetting(tower, GetPlayer));
+        }
+
+        foreach (var boss in Enum.GetValues<BossType>())
+        {
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"{boss} Normal",
+                VanillaSprites.ByName[$"{boss}Badge"], 0,
+                () => GetPlayer().Data.bossMedals.ContainsKey((int)boss)
+                    ? GetPlayer().Data.bossMedals[(int)boss].normalBadges.ValueInt
+                    : 0,
+                t =>
+                {
+                    if (!GetPlayer().Data.bossMedals.ContainsKey((int)boss))
+                    {
+                        GetPlayer().Data.bossMedals[(int)boss] = new BossMedalSaveData();
+                    }
+
+                    GetPlayer().Data.bossMedals[(int)boss].normalBadges.Value = t;
+                }));
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"{boss} Elite",
+                    VanillaSprites.ByName[$"{boss}EliteBadge"], 0,
+                () => GetPlayer().Data.bossMedals.ContainsKey((int)boss)
+                    ? GetPlayer().Data.bossMedals[(int)boss].eliteBadges.ValueInt
+                    : 0,
+                t =>
+                {
+                    if (!GetPlayer().Data.bossMedals.ContainsKey((int)boss))
+                    {
+                        GetPlayer().Data.bossMedals[(int)boss] = new BossMedalSaveData();
+                    }
+
+                    GetPlayer().Data.bossMedals[(int)boss].eliteBadges.Value = t;
+                }));
+        }
+
+        var badgeToName = new Dictionary<LeaderboardBadgeType, string> {
+            {LeaderboardBadgeType.BlackDiamond, "1st"},
+            {LeaderboardBadgeType.RedDiamond, "2nd"},
+            {LeaderboardBadgeType.BlueDiamond, "3rd"},
+            {LeaderboardBadgeType.GoldDiamond, "Top 50"},
+            {LeaderboardBadgeType.DoubleGold, "Top 1%"},
+            {LeaderboardBadgeType.GoldSilver, "Top 10%"},
+            {LeaderboardBadgeType.DoubleSilver, "Top 25%"},
+            {LeaderboardBadgeType.Silver, "Top 50%"},
+            {LeaderboardBadgeType.Bronze, "Top 75%"},
+        };
+        foreach (var leaderboard in badgeToName.Keys)
+        {
+            var name = leaderboard == LeaderboardBadgeType.BlueDiamond ? "Diamond" : leaderboard.ToString();
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"Boss {badgeToName[leaderboard]}",
+                    VanillaSprites.ByName[$"BossMedalEvent{name}Medal"], 0,
+                () => GetPlayer().Data.bossLeaderboardMedals.ContainsKey((int)leaderboard) ? GetPlayer().Data.bossLeaderboardMedals[(int)leaderboard].ValueInt : 0,
+                t =>
+                {
+                    if (!GetPlayer().Data.bossLeaderboardMedals.ContainsKey((int)leaderboard))
+                    {
+                        GetPlayer().Data.bossLeaderboardMedals[(int)leaderboard] = new KonFuze_NoShuffle();
+                    }
+                    
+                    GetPlayer().Data.bossLeaderboardMedals[(int)leaderboard].Value = t;
+                }));
+        }
+        foreach (var leaderboard in badgeToName.Keys)
+        {
+            var name = leaderboard == LeaderboardBadgeType.BlueDiamond ? "Diamond" : leaderboard.ToString();
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"Elite Boss {badgeToName[leaderboard]}",
+                VanillaSprites.ByName[$"EliteBossMedalEvent{name}Medal"], 0,
+                () => GetPlayer().Data.bossLeaderboardEliteMedals.ContainsKey((int)leaderboard) ? GetPlayer().Data.bossLeaderboardEliteMedals[(int)leaderboard].ValueInt : 0,
+                t =>
+                {
+                    if (!GetPlayer().Data.bossLeaderboardEliteMedals.ContainsKey((int)leaderboard))
+                    {
+                        GetPlayer().Data.bossLeaderboardEliteMedals[(int)leaderboard] = new KonFuze_NoShuffle();
+                    }
+                    
+                    GetPlayer().Data.bossLeaderboardEliteMedals[(int)leaderboard].Value = t;
+                }));
+        }
+        foreach (var leaderboard in badgeToName.Keys)
+        {
+            var name = leaderboard == LeaderboardBadgeType.BlueDiamond ? "Diamond" : leaderboard.ToString();
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"Race {badgeToName[leaderboard]}",
+                    VanillaSprites.ByName[$"MedalEvent{name}Medal"], 0,
+                () => GetPlayer().Data.raceMedalData.ContainsKey((int)leaderboard) ? GetPlayer().Data.raceMedalData[(int)leaderboard].ValueInt : 0,
+                t =>
+                {
+                    if (!GetPlayer().Data.raceMedalData.ContainsKey((int)leaderboard))
+                    {
+                        GetPlayer().Data.raceMedalData[(int)leaderboard] = new KonFuze_NoShuffle();
+                    }
+                    
+                    GetPlayer().Data.raceMedalData[(int)leaderboard].Value = t;
+                }));
+        }
+        
+        badgeToName = new Dictionary<LeaderboardBadgeType, string> {
+            {LeaderboardBadgeType.BlackDiamond, "1st"},
+            {LeaderboardBadgeType.RedDiamond, "2nd"},
+            {LeaderboardBadgeType.BlueDiamond, "3rd"},
+            {LeaderboardBadgeType.GoldDiamond, "4th-10th"},
+            {LeaderboardBadgeType.DoubleGold, "11th-20th"},
+            {LeaderboardBadgeType.Silver, "21st-40th"},
+            {LeaderboardBadgeType.Bronze, "41st-60th"},
+        };
+        foreach (var leaderboard in badgeToName.Keys)
+        {
+            var name = leaderboard == LeaderboardBadgeType.BlueDiamond ? "Diamond" : leaderboard.ToString();
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"CT Local {badgeToName[leaderboard]}",
+                    VanillaSprites.ByName[$"CtLocalPlayer{name}Medal"], 0,
+                () => GetPlayer().GetCtLeaderboardBadges(false).ContainsKey((int)leaderboard) ? GetPlayer().GetCtLeaderboardBadges(false)[(int)leaderboard].ValueInt : 0,
+                t =>
+                {
+                    if (!GetPlayer().GetCtLeaderboardBadges(false).ContainsKey((int)leaderboard))
+                    {
+                        GetPlayer().GetCtLeaderboardBadges(false)[(int)leaderboard] = new KonFuze_NoShuffle();
+                    }
+
+                    GetPlayer().GetCtLeaderboardBadges(false)[(int)leaderboard].Value = t;
+                }));
+        }
+        
+        badgeToName = new Dictionary<LeaderboardBadgeType, string> {
+            {LeaderboardBadgeType.BlueDiamond, "Top 25"},
+            {LeaderboardBadgeType.GoldDiamond, "Top 100"},
+            {LeaderboardBadgeType.DoubleGold, "Top 1%"},
+            {LeaderboardBadgeType.GoldSilver, "Top 10%"},
+            {LeaderboardBadgeType.DoubleSilver, "Top 25%"},
+            {LeaderboardBadgeType.Silver, "Top 50%"},
+            {LeaderboardBadgeType.Bronze, "Top 75%"},
+        };
+        foreach (var leaderboard in badgeToName.Keys)
+        {
+            var name = leaderboard == LeaderboardBadgeType.BlueDiamond ? "Diamond" : leaderboard.ToString();
+            Settings["Online Modes"].Add(new NumberPlayerDataSetting($"CT Global {badgeToName[leaderboard]}",
+                VanillaSprites.ByName[$"CtGlobalPlayer{name}Medal"], 0,
+                () => GetPlayer().GetCtLeaderboardBadges(true).ContainsKey((int)leaderboard) ? GetPlayer().GetCtLeaderboardBadges(true)[(int)leaderboard].ValueInt : 0,
+                t =>
+                {
+                    if (!GetPlayer().GetCtLeaderboardBadges(true).ContainsKey((int)leaderboard))
+                    {
+                        GetPlayer().GetCtLeaderboardBadges(true)[(int)leaderboard] = new KonFuze_NoShuffle();
+                    }
+
+                    GetPlayer().GetCtLeaderboardBadges(true)[(int)leaderboard].Value = t;
+                }));
         }
     }
 
@@ -260,8 +419,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 AnchorMin = new Vector2(0, 1), AnchorMax = new Vector2(1, 1)
             }, layoutAxis: RectTransform.Axis.Horizontal, padding: 50);
 
-        _topArea.AddDropdown(new Info("Category", 650, 150),
-            Settings.Keys.ToIl2CppList(), 1000, new System.Action<int>(i =>
+        _topArea.AddDropdown(new Info("Category", 775, 150),
+            Settings.Keys.ToIl2CppList(), 1400, new Action<int>(i =>
             {
                 _category = Settings.Keys.ElementAt(i);
                 SetPage(0);
@@ -269,7 +428,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         _topArea.AddPanel(new Info("Spacing", InfoPreset.Flex));
         _searchInput = _topArea.AddInputField(new Info("Search", 1500, 150), _searchValue,
             VanillaSprites.BlueInsertPanelRound,
-            new System.Action<string>(s =>
+            new Action<string>(s =>
             {
                 _searchValue = s;
                 UpdateVisibleEntries();

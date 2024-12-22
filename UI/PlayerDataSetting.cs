@@ -17,6 +17,7 @@ using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
+using Il2CppInterop.Runtime;
 using Il2CppNinjaKiwi.Common.ResourceUtils;
 using Il2CppNinjaKiwi.Common;
 using Il2CppTMPro;
@@ -222,6 +223,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
 
     private readonly MapDetails _details;
     private readonly MapInfo _map;
+    private readonly bool _coop;
 
     public Action? ReloadAllVisuals
     {
@@ -229,11 +231,12 @@ public class MapPlayerDataSetting : PlayerDataSetting
         private get;
     }
     
-    public MapPlayerDataSetting(MapDetails details, MapInfo map) :
+    public MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop) :
         base(LocalizationManager.Instance.Format(details.id), details.mapSprite.AssetGUID)
     {
         _details = details;
         _map = map;
+        _coop = coop;
     }
 
     public override ModHelperImage GetIcon()
@@ -287,7 +290,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
                                  _ => new List<MapDetails>()
                              }).Select(map =>
                                  Game.Player.Data.mapInfo.GetMap(map.id).GetOrCreateDifficulty(difficulty)
-                                     .GetOrCreateMode(mode, false))) 
+                                     .GetOrCreateMode(mode, _coop))) 
                     {
                         mapMode.timesCompleted = wins;
                         mapMode.completedWithoutLoadingSave = noExit;
@@ -314,13 +317,19 @@ public class MapPlayerDataSetting : PlayerDataSetting
         {
             if (c != 9) return;
 
-            var idx = (selectedInput == null ? 0 : 
-                          selectedInput.GetComponentInParent<ModHelperTableRow>().Row) + 
-                      (Keyboard.current.shiftKey.isPressed ? -1 : 1);
-            if (idx < 1 || idx >= settings.RowCount) return;
-            
-            settings.GetRow(idx).GetComponentInChildren<ModHelperInputField>()?.InputField.Select();
-            settings.ScrollTo(idx);
+            try
+            {
+                var idx = (selectedInput == null ? 0 : selectedInput.GetComponentInParent<ModHelperTableRow>().Row) +
+                          (Keyboard.current.shiftKey.isPressed ? -1 : 1);
+                if (idx < 1 || idx >= settings.RowCount) return;
+
+                settings.GetRow(idx).GetComponentInChildren<ModHelperInputField>()?.InputField.Select();
+                settings.ScrollTo(idx);
+            }
+            catch (Il2CppException _) // popup probably closed, remove listener
+            {
+                Keyboard.current.remove_onTextInput(tabListener);
+            }
         };
         Keyboard.current.add_onTextInput(tabListener);
         
@@ -341,7 +350,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
                         $"Mode {difficultyEntry.Value[modeIdx]}";
 
                 var modeInfo = _map.GetOrCreateDifficulty(difficultyEntry.Key)
-                    .GetOrCreateMode(difficultyEntry.Value[modeIdx], false);
+                    .GetOrCreateMode(difficultyEntry.Value[modeIdx], _coop);
 
                 var medalName = $"{difficulty}{(k > 0 ? chimps ? modeInfo.completedWithoutLoadingSave ? "Hematite" : "Ruby" : $"0{k}" : "")}";
 
@@ -465,7 +474,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
         
         foreach (var difficulty in _map.difficult)
         {
-            foreach (var mode in difficulty.Value.modes)
+            foreach (var mode in _coop ? difficulty.Value.coopModes : difficulty.Value.modes)
             {
                 mode.Value.timesCompleted = 0;
                 mode.Value.completedWithoutLoadingSave = false;
@@ -476,7 +485,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
     private MapModeInfo? GetModeInfo(Component medal)
     {
         return _map.GetDifficulty(medal.transform.parent.name.Split("/")[0])?.
-            GetMode(medal.name, false);
+            GetMode(medal.name, _coop);
     }
 
     private void FillInMedals(Component medals)
