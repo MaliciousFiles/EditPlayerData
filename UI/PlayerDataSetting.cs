@@ -9,8 +9,11 @@ using BTD_Mod_Helper.Extensions;
 using EditPlayerData.Utils;
 using HarmonyLib;
 using Il2CppAssets.Scripts.Data;
+using Il2CppAssets.Scripts.Data.Knowledge.RelicKnowledge;
 using Il2CppAssets.Scripts.Data.MapSets;
+using Il2CppAssets.Scripts.Data.Store;
 using Il2CppAssets.Scripts.Data.TrophyStore;
+using Il2CppAssets.Scripts.Models;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.TowerSets;
 using Il2CppAssets.Scripts.Unity;
@@ -209,6 +212,46 @@ public class BoolPlayerDataSetting : TypedPlayerDataSetting<bool>
         spacer.transform.MoveAfterSibling(popupBody.transform, true);
     }
 }
+
+public class PurchasePlayerDataSetting : BoolPlayerDataSetting
+{
+    private string id;
+
+    public PurchasePlayerDataSetting(string name, string icon, string id) : base(
+        name, icon, false,
+        () => Game.Player.Data.purchase.HasMadeOneTimePurchase(id),
+        t =>
+        {
+            if (t) Game.Player.Data.purchase.AddOneTimePurchaseItem(id);
+            else Game.Player.Data.purchase.RemoveOneTimePurchaseItem(id);
+        })
+    {
+        this.id = id;
+    }
+
+    public PurchasePlayerDataSetting(string name, string icon, string id, Func<bool> getter, Action<bool> setter) : base(
+        name, icon, false, getter, setter)
+    {
+        this.id = id;
+    }
+
+    protected override void ShowEditValuePopup(PopupScreen screen)
+    {
+        if (!Getter())
+        {
+            screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Are you Sure?",
+                "Ninja Kiwi is an incredible company, making great games at low prices. Please consider supporting them if at all possible.",
+                new Action(() =>
+                {
+                    screen.ShowStorePopup(GameData.Instance.storeItems.GetProduct(id),
+                        new Action(() => ReloadVisuals?.Invoke()));
+                }), "I will!",
+                new Action(() => base.ShowEditValuePopup(screen)), "I can't :(",
+                Popup.TransitionAnim.Scale, PopupScreen.BackGround.GreyNonDismissable);
+        }
+        else base.ShowEditValuePopup(screen);
+    }
+};
 
 public class MapPlayerDataSetting : PlayerDataSetting
 {

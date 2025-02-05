@@ -11,7 +11,6 @@ using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.Boss;
 using Il2CppAssets.Scripts.Models.Profile;
-using Il2CppAssets.Scripts.Models.Store;
 using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
@@ -37,12 +36,13 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         {
             "General", new List<PlayerDataSetting>
             {
-                new BoolPlayerDataSetting("Unlocked Double Cash", VanillaSprites.DoubleCashModeShop, false,
-                    () => GetPlayer().Data.purchase.purchasedDoubleCashMode,
-                    t => GetPlayer().Data.purchase.purchasedDoubleCashMode = t),
-                new BoolPlayerDataSetting("Unlocked Fast Track", VanillaSprites.FastTrackModeIcon, false,
+                new PurchasePlayerDataSetting("Unlocked Double Cash", VanillaSprites.DoubleCashModeShop, "btd6_doublecashmode"),
+                new PurchasePlayerDataSetting("Unlocked Fast Track", VanillaSprites.FastTrackModeIcon,
+                    "btd6_fasttrackpack",
                     () => GetPlayer().Data.unlockedFastTrack,
                     t => GetPlayer().Data.unlockedFastTrack = t),
+                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendsBtn, "btd6_legendsrogue"),
+                new PurchasePlayerDataSetting("Unlocked Map Editor", VanillaSprites.MapEditorBtn, "btd6_mapeditorsupporter_new"),
                 new NumberPlayerDataSetting("Monkey Money", VanillaSprites.MonkeyMoneyShop, 0,
                     () => GetPlayer().Data.monkeyMoney.ValueInt, t => GetPlayer().Data.monkeyMoney.Value = t),
                 new NumberPlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,
