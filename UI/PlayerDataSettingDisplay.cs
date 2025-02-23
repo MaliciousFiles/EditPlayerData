@@ -72,6 +72,7 @@ internal class PlayerDataSettingDisplay : ModHelperPanel
         SetPanelContents("Edit", setting.GetEditButton());
         GetDescendent<ModHelperButton>("Reset").Button.SetOnClick(() =>
         {
+            if (!setting.IsUnlocked()) return;
             setting.ResetToDefault();
             Game.instance.playerService.Player.Save();
             SetSetting(setting);

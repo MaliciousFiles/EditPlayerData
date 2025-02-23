@@ -10,6 +10,7 @@ using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.Boss;
+using Il2CppAssets.Scripts.Data.TrophyStore;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
@@ -139,15 +140,16 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         
         foreach (var item in GameData.Instance.trophyStoreItems.GetAllItems())
         {
-            Settings["Trophy Store"].Add(new BoolPlayerDataSetting(item.GetLocalizedShortName(), item.icon.AssetGUID,
+            Settings["Trophy Store"].Add(new BoolPlayerDataSetting(item.GetLocalizedShortName()+" Enabled", item.icon.AssetGUID,
                 false,
-                () => Game.Player.EnabledTrophyStoreItems().Contains(item.id),
-                val => Game.Player.Data.trophyStorePurchasedItems[item.id].enabled = val
+                () => Game.Player.EnabledTrophyStoreItems().Contains(item.Id),
+                val => Game.Player.Data.trophyStorePurchasedItems[item.Id].enabled = val
             ).Unlockable(
-                () => !Game.Player.Data.trophyStorePurchasedItems.ContainsKey(item.id),
+                () => !Game.Player.Data.trophyStorePurchasedItems.ContainsKey(item.Id),
                 () => Game.Player.AddTrophyStoreItem(item.id)));
         }
 
+        
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
             Settings["Maps"].Add(new MapPlayerDataSetting(details, data.mapInfo.GetMap(details.id), false)
