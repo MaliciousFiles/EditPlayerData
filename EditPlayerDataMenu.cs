@@ -107,10 +107,6 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     },
                     t =>
                     {
-                        // GetPlayer().Data.legendsData.featsProgress.Clear();
-                        // GetPlayer().Data.legendsData.featsClaimed.Clear();
-                        // GameData.Instance.rogueData.featsData.ClearFeatProgress();
-                        
                         var feats = GameData.Instance.rogueData.featsData.featDatas;
                         for (var i = 0; i < feats.Count; i++)
                         {
@@ -123,9 +119,6 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                                 activeFeat.claimed = true;
                                 GetPlayer().Data.legendsData.featsProgress[id] = feats.Get(i).goal;
                                 activeFeat.currentProgress = activeFeat.Goal;
-                                // Game.instance.legendsManager.ClaimFeat(id);
-                                // GameData.Instance.rogueData.featsData.ClaimFeat(id);
-                                // activeFeat.ClaimFeat();
                             }
                             else
                             {
@@ -136,7 +129,6 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                             }
                         }
                         
-                        // Game.instance.legendsManager.CheckFeats();
                         GetPlayer().SetLegendBadges(nameof(LegendsType.Rogue), false, Mathf.Min(t, feats.Count));
                         GetPlayer().SetLegendBadges(nameof(LegendsType.Rogue), true, t >= feats.Count ? 1 : 0);
                     }),
