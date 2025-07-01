@@ -75,7 +75,6 @@ internal class PlayerDataSettingDisplay : ModHelperPanel
             if (!setting.IsUnlocked()) return;
             setting.ResetToDefault();
             Game.instance.playerService.Player.Save();
-            SetSetting(setting);
         });
     }
 }

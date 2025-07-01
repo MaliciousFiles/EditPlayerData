@@ -52,6 +52,10 @@
 
         <Reference Include="$(BloonsTD6)\MelonLoader\net6\Il2CppInterop.Runtime.dll" Private="false"/>
     </ItemGroup>
+    
+    <ItemGroup>
+        <Reference Include="C:\Windows\Microsoft.NET\Framework64\v*\System.Windows.Forms.dll"/>
+    </ItemGroup>
 
     <!--Mod Helper dependency-->
     <ItemGroup Condition="$(DontReferenceModHelper) != 'true'">

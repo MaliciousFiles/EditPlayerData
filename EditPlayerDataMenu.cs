@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
@@ -9,8 +11,10 @@ using BTD_Mod_Helper.Extensions;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
+using Il2CppAssets.Scripts.Data.Artifacts;
 using Il2CppAssets.Scripts.Data.Boss;
 using Il2CppAssets.Scripts.Data.TrophyStore;
+using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
@@ -18,9 +22,16 @@ using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Achievements;
 using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
+using Il2CppAssets.Scripts.Unity.UI_New.Legends;
+using Il2CppAssets.Scripts.Unity.UI_New.Odyssey;
+using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.Runtime;
 using Il2CppNinjaKiwi.Common;
+using Il2CppNinjaKiwi.LiNK.Client.Streams;
 using Il2CppSystem.Linq;
+using Il2CppSystem.Text;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -55,6 +66,13 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     t => GetPlayer().GainTrophies(t - GetPlayer().Data.trophies.ValueInt, "")),
                 new NumberPlayerDataSetting("Games Won", VanillaSprites.ConfettiIcon, 0,
                     () => GetPlayer().Data.completedGame, t => GetPlayer().Data.completedGame = t),
+                new NumberPlayerDataSetting("Rogue XP", VanillaSprites.RogueXpShopIconLarge, 0,
+                    () => GetPlayer().Data.legendsData.rogueLegendXp, t => GetPlayer().Data.legendsData.rogueLegendXp = t),
+                new NumberPlayerDataSetting("Odyssey Stars", VanillaSprites.OdysseyStarIcon, 0,
+                    () => GetPlayer().Data.completedOdysseys.GetValues().ToList().Sum(v=>v.ValueInt+3),
+                    t => GetPlayer().Data.completedOdysseys["EditPlayerData"] = new KonFuze_NoShuffle(
+                        t - GetPlayer().Data.completedOdysseys.Keys().ToList().Where(k=>k != "EditPlayerData")
+                            .Sum(k=>GetPlayer().Data.completedOdysseys[k].ValueInt+3) - 3)),
                 new NumberPlayerDataSetting("Highest Seen Round", VanillaSprites.BadBloonIcon, 0,
                     () => GetPlayer().Data.highestSeenRound, t => GetPlayer().Data.highestSeenRound = t),
                 new NumberPlayerDataSetting("Continues", VanillaSprites.ContinueIcon, 0,
@@ -63,6 +81,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     () => GetPlayer().Data.unlockedBigBloons, t => GetPlayer().Data.unlockedBigBloons = t),
                 new BoolPlayerDataSetting("Unlocked Small Bloons", VanillaSprites.SmallBloonModeIcon, false,
                     () => GetPlayer().Data.unlockedSmallBloons, t => GetPlayer().Data.unlockedSmallBloons = t),
+                new BoolPlayerDataSetting("Unlocked Small Bosses", VanillaSprites.SmallBossModeIcon, false,
+                    () => GetPlayer().Data.unlockedSmallBosses, t => GetPlayer().Data.unlockedSmallBosses = t),
                 new BoolPlayerDataSetting("Unlocked Big Monkeys", VanillaSprites.BigMonkeysModeIcon, false,
                     () => GetPlayer().Data.unlockedBigTowers, t => GetPlayer().Data.unlockedBigTowers = t),
                 new BoolPlayerDataSetting("Unlocked Small Monkeys", VanillaSprites.SmallMonkeysModeIcon, false,
@@ -75,9 +95,63 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 new NumberPlayerDataSetting("Odysseys Completed", VanillaSprites.OdysseyIcon, 0,
                     () => GetPlayer().Data.totalCompletedOdysseys.ValueInt,
                     t => GetPlayer().Data.totalCompletedOdysseys.Value = t),
+                new NumberPlayerDataSetting("Rogue Feats", VanillaSprites.Legends1, 0,
+                    () =>
+                    {
+                        var sum = 0;
+                        foreach (var f in GameData.Instance.rogueData.featsData.featDatas)
+                        {
+                            if (GetPlayer().Data.legendsData.featsClaimed.Contains(f.featId)) sum++;
+                        }
+                        return sum;
+                    },
+                    t =>
+                    {
+                        // GetPlayer().Data.legendsData.featsProgress.Clear();
+                        // GetPlayer().Data.legendsData.featsClaimed.Clear();
+                        // GameData.Instance.rogueData.featsData.ClearFeatProgress();
+                        
+                        var feats = GameData.Instance.rogueData.featsData.featDatas;
+                        for (var i = 0; i < feats.Count; i++)
+                        {
+                            var id = feats.Get(i).featId;
+                            var activeFeat = GameData.Instance.rogueData.featsData.GetActiveFeat(id);
+
+                            if (i < t)
+                            {
+                                GetPlayer().Data.legendsData.featsClaimed.Add(id);
+                                activeFeat.claimed = true;
+                                GetPlayer().Data.legendsData.featsProgress[id] = feats.Get(i).goal;
+                                activeFeat.currentProgress = activeFeat.Goal;
+                                // Game.instance.legendsManager.ClaimFeat(id);
+                                // GameData.Instance.rogueData.featsData.ClaimFeat(id);
+                                // activeFeat.ClaimFeat();
+                            }
+                            else
+                            {
+                                GetPlayer().Data.legendsData.featsClaimed.Remove(id);
+                                activeFeat.claimed = false;
+                                GetPlayer().Data.legendsData.featsProgress.Remove(id);
+                                activeFeat.currentProgress = 0;
+                            }
+                        }
+                        
+                        // Game.instance.legendsManager.CheckFeats();
+                        GetPlayer().SetLegendBadges(nameof(LegendsType.Rogue), false, Mathf.Min(t, feats.Count));
+                        GetPlayer().SetLegendBadges(nameof(LegendsType.Rogue), true, t >= feats.Count ? 1 : 0);
+                    }),
                 new NumberPlayerDataSetting("Tower Gift Unlock Pops", VanillaSprites.GiftBoxIcon, 0,
-                    () => GetPlayer().Data.currentTowerGiftProgress.ValueInt,
-                    t => GetPlayer().Data.currentTowerGiftProgress.Value = t),
+                    () => GetPlayer().Data.towerUnlockProgresses
+                        .TryGetValue(GetPlayer().Data.selectedTowerForUnlockProgression, out var val)
+                        ? val.ValueInt
+                        : 0,
+                    t =>
+                    {
+                        var dict = GetPlayer().Data.towerUnlockProgresses;
+                        var key = GetPlayer().Data.selectedTowerForUnlockProgression;
+                        if (dict.TryGetValue(key, out var val)) val.Value = t;
+                        else dict[key] = new KonFuze_NoShuffle(t);
+                    }),
                 new NumberPlayerDataSetting("Daily Reward Index", VanillaSprites.DailyChestIcon, 0,
                     () => GetPlayer().Data.dailyRewardIndex, t => GetPlayer().Data.dailyRewardIndex = t),
                 
@@ -111,7 +185,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Maps - Coop", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
-            "Tower XP", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+            "Towers", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
             "Powers", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
@@ -120,9 +194,63 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Instas", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
+            "Banners", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
+            "Artifacts", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values 
+        },
+        {
             "Online Modes", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         }
     };
+
+    public static void SerializeAllSettings(FileStream file)
+    {
+        var writer = new Utf8JsonWriter(file);
+
+        writer.WriteStartObject();
+        foreach (var category in Settings.Keys)
+        {
+            writer.WriteStartObject(category);
+            foreach (var setting in Settings[category])
+            {
+                writer.WritePropertyName(setting.GetId());
+                setting.Serialize(writer);
+            }
+            writer.WriteEndObject();
+        }
+        writer.WriteEndObject();
+
+        writer.Dispose();
+    }
+    
+    private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
+    public static void DeserializeAllSettings(string file)
+    {
+        ReadOnlySpan<byte> jsonReadOnlySpan = File.ReadAllBytes(file);
+        if (jsonReadOnlySpan.StartsWith(Utf8Bom)) jsonReadOnlySpan = jsonReadOnlySpan[Utf8Bom.Length..];
+
+        var reader = new Utf8JsonReader(jsonReadOnlySpan);
+
+        reader.Read(); // start object
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject) return;
+
+            var category = reader.GetString()!;
+
+            reader.Read(); // start object
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndObject) break;
+
+                var settingId = reader.GetString()!;
+
+                reader.Read();
+                Settings[category].Find(s => s.GetId() == settingId)?.Deserialize(ref reader);
+            }
+        }
+    }
 
     private static bool _isOpen;
 
@@ -133,9 +261,10 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         Settings["Trophy Store"].Clear();
         Settings["Maps"].Clear();
         Settings["Maps - Coop"].Clear();
-        Settings["Tower XP"].Clear();
+        Settings["Towers"].Clear();
         Settings["Powers"].Clear();
         Settings["Instas"].Clear();
+        Settings["Banners"].Clear();
         Settings["Online Modes"].Clear();
         
         foreach (var item in GameData.Instance.trophyStoreItems.GetAllItems())
@@ -143,12 +272,11 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             Settings["Trophy Store"].Add(new BoolPlayerDataSetting(item.GetLocalizedShortName()+" Enabled", item.icon.AssetGUID,
                 false,
                 () => Game.Player.EnabledTrophyStoreItems().Contains(item.Id),
-                val => Game.Player.Data.trophyStorePurchasedItems[item.Id].enabled = val
+                val => data.trophyStorePurchasedItems[item.Id].enabled = val
             ).Unlockable(
-                () => !Game.Player.Data.trophyStorePurchasedItems.ContainsKey(item.Id),
+                () => !data.trophyStorePurchasedItems.ContainsKey(item.Id),
                 () => Game.Player.AddTrophyStoreItem(item.id)));
         }
-
         
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
@@ -161,7 +289,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     () => !data.mapInfo.IsMapUnlocked(details.id),
                     () => data.mapInfo.UnlockMap(details.id)));
         }
-
+        
         foreach (var power in Game.instance.model.powers)
         {
             if (power.name is "CaveMonkey" or "DungeonStatue" or "SpookyCreature") continue;
@@ -185,7 +313,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
         foreach (var tower in Game.instance.GetTowerDetailModels())
         {
-            Settings["Tower XP"].Add(new TowerPlayerDataSetting(tower, GetPlayer).Unlockable(
+            Settings["Towers"].Add(new TowerPlayerDataSetting(tower, GetPlayer).Unlockable(
                 () => !data.unlockedTowers.Contains(tower.towerId),
                 () =>
                 {
@@ -227,6 +355,32 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 }));
 
             Settings["Instas"].Add(new InstaMonkeyPlayerDataSetting(tower, GetPlayer));
+        }
+        
+        foreach (var banner in GameData.Instance.profileBanners.profileBanners)
+        {
+            var storeItem = GameData.Instance.trophyStoreItems.GetStoreItem(banner.trophyStoreId);
+            var name = storeItem?.GetLocalizedShortName() ?? "Default Banner";
+            Settings["Banners"].Add(new ProfilePlayerDataSetting(name + (name.EndsWith(" Banner") ? "" : " Banner"),
+                storeItem?.icon.AssetGUID ?? banner.iconSmall.AssetGUID, false,
+                () => data.profileBanner == banner.id,
+                t => data.profileBanner = t ? banner.id : GameData.Instance.profileBanners.defaultBanner.id));
+        }
+        foreach (var banner in GameData.Instance.teamsData.teamBanners.profileBanners)
+        {
+            var storeItem = GameData.Instance.teamsData.teamsStoreItems.GetStoreItem(banner.trophyStoreId);
+            if (storeItem == null) continue; // no default banner for this one
+
+            var name = storeItem.GetLocalizedShortName();
+            Settings["Banners"].Add(new ProfilePlayerDataSetting(name + (name.EndsWith(" Banner") ? "" : " Banner"),
+                storeItem.icon.AssetGUID, false,
+                () => data.profileBanner == banner.id,
+                t => data.profileBanner = t ? banner.id : GameData.Instance.profileBanners.defaultBanner.id));
+        }
+        
+        foreach (var artifact in GameData.Instance.artifactsData.artifactModelsByType[Il2CppType.Of<ItemArtifactModel>()])
+        {
+            Settings["Artifacts"].Add(new ArtifactPlayerDataSetting(artifact));
         }
 
         foreach (var boss in Enum.GetValues<BossType>())
@@ -393,6 +547,11 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     public override bool OnMenuOpened(Object data)
     {
         _isOpen = true;
+
+        if (GetPlayer().OnlineData == null)
+        {
+            Settings["Online Modes"].RemoveAll(s => s.Name.StartsWith("CT")); // contested territory doesn't work w/o OnlineData
+        }
         
         GameMenu.GetComponentFromChildrenByName<NK_TextMeshProUGUI>("Title").SetText("Player Data");
 
@@ -422,7 +581,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             }, layoutAxis: RectTransform.Axis.Horizontal, padding: 50);
 
         _topArea.AddDropdown(new Info("Category", 775, 150),
-            Settings.Keys.ToIl2CppList(), 1400, new Action<int>(i =>
+            Settings.Keys.ToIl2CppList(), 2000, new Action<int>(i =>
             {
                 _category = Settings.Keys.ElementAt(i);
                 SetPage(0);
@@ -446,7 +605,52 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             Settings[_category].ForEach(s=>s.Unlock());
             UpdateVisibleEntries();
         })).AddText(new Info("UnlockAllText", 650, 200), "Unlock All", 60);
-        _topArea.AddPanel(new Info("UnlockAll Filler", 650, 200));       
+        _topArea.AddButton(new Info("SetAll", 650, 200), VanillaSprites.GreenBtnLong, new Action(() =>
+        {
+            PopupScreen.instance.SafelyQueue(screen =>
+            {
+                switch (_category)
+                {
+                    case "Powers":
+                    {
+                        NumberPlayerDataSetting.ShowPopup(screen, 0, n =>
+                        {
+                            foreach (var setting in Settings[_category].Select(s => s as NumberPlayerDataSetting))
+                            {
+                                setting!.Setter(n);
+                            }
+                            UpdateVisibleEntries();
+                        });
+                        break;
+                    }
+                    case "Instas":
+                    {
+                        NumberPlayerDataSetting.ShowPopup(screen, 0, n =>
+                        {
+                            foreach (var setting in Settings[_category].Select(s => s as InstaMonkeyPlayerDataSetting))
+                            {
+                                setting!.SetAll(n);
+                            }
+                            UpdateVisibleEntries();
+                        });
+                        break;
+                    }
+                    case "Artifacts":
+                    {
+                        BoolPlayerDataSetting.ShowPopup(screen, false, n =>
+                        {
+                            foreach (var setting in Settings[_category].Select(s => s as ArtifactPlayerDataSetting))
+                            {
+                                setting!.Setter(n);
+                            }
+                            UpdateVisibleEntries();
+                        });
+                        break;
+                    }
+                }
+            });
+        })).AddText(new Info("SetAllText", 650, 200), "Set All", 60);
+        _topArea.AddPanel(new Info("Special Button Filler", 650, 200));
 
         
         GenerateEntries();
@@ -454,6 +658,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
         // for no discernible reason, this defaults to 300
         GameMenu.scrollRect.scrollSensitivity = 50;
+        _searchInput.text = _searchValue = "";
         
         return false;
     }
@@ -481,8 +686,12 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     private void UpdateVisibleEntries()
     {
         var anyUnlockable = Settings[_category].Any(s => !s.IsUnlocked());
-        _topArea.GetDescendent<ModHelperButton>("UnlockAll").SetActive(anyUnlockable);
-        _topArea.GetDescendent<ModHelperPanel>("UnlockAll Filler").SetActive(!anyUnlockable);
+        _topArea.GetDescendent<ModHelperButton>("UnlockAll")?.SetActive(anyUnlockable);
+
+        var canAddAll = _category is "Powers" or "Instas" or "Artifacts";
+        _topArea.GetDescendent<ModHelperButton>("SetAll")?.SetActive(!anyUnlockable && canAddAll);
+        
+        _topArea.GetDescendent<ModHelperPanel>("Special Button Filler")?.SetActive(!anyUnlockable && !canAddAll);
 
         var settings = Settings[_category].FindAll(s => s.Name.ContainsIgnoreCase(_searchValue));
         SetPage(_pageIdx, false);
@@ -503,6 +712,10 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     ((MapPlayerDataSetting) settings[idx]).ReloadAllVisuals = UpdateVisibleEntries;
                 }
                 entry.SetSetting(settings[idx]);
+                if (settings[idx].GetType() == typeof(ProfilePlayerDataSetting))
+                {
+                    settings[idx].ReloadVisuals = UpdateVisibleEntries; // needs to reload all visible
+                }
                 entry.SetActive(true);
             }
         }
