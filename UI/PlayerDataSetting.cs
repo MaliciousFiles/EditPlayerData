@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -26,10 +25,13 @@ using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
 using Il2CppNinjaKiwi.Common.ResourceUtils;
 using Il2CppNinjaKiwi.Common;
+using Il2CppSystem;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using Action = System.Action;
+using Math = System.Math;
 
 // ReSharper disable AccessToModifiedClosure
 
@@ -47,7 +49,7 @@ public abstract class PlayerDataSetting(string name, string icon)
     }
     
     private bool _unlockable;
-    private Func<bool>? _isLocked;
+    private System.Func<bool>? _isLocked;
     private Action? _unlock;
 
     public ModHelperButton GetEditButton()
@@ -80,7 +82,7 @@ public abstract class PlayerDataSetting(string name, string icon)
         return !_unlockable || !_isLocked!();
     }
 
-    public PlayerDataSetting Unlockable(Func<bool> isLocked, Action unlock)
+    public PlayerDataSetting Unlockable(System.Func<bool> isLocked, Action unlock)
     {
         _unlockable = true;
         _isLocked = isLocked;
@@ -124,15 +126,34 @@ public abstract class PlayerDataSetting(string name, string icon)
     {
         return name.ToLower().Replace(' ', '_') + "[" + icon + "]";
     }
-    public abstract void Serialize(Utf8JsonWriter writer);
-    public abstract void Deserialize(ref Utf8JsonReader reader);
+
+    public void Serialize(Utf8JsonWriter writer)
+    {
+        if (!IsUnlocked())
+        {
+            writer.WriteStringValue("LOCKED");
+        }
+        else
+        {
+            SerializeSelf(writer);
+        }
+    }
+
+    public void Deserialize(ref Utf8JsonReader reader)
+    {
+        if (reader.TokenType == JsonTokenType.String && reader.GetString() == "LOCKED") return;
+        DeserializeSelf(ref reader);
+    }
+    
+    protected abstract void SerializeSelf(Utf8JsonWriter writer);
+    protected abstract void DeserializeSelf(ref Utf8JsonReader reader);
 }
 
-public abstract class TypedPlayerDataSetting<T>(string name, string icon, T def, Func<T> getter, Action<T> setter)
+public abstract class TypedPlayerDataSetting<T>(string name, string icon, T def, System.Func<T> getter, System.Action<T> setter)
     : PlayerDataSetting(name, icon)
 {
-    public readonly Func<T> Getter = getter;
-    public readonly Action<T> Setter = setter;
+    public readonly System.Func<T> Getter = getter;
+    public readonly System.Action<T> Setter = setter;
 
     protected override ModHelperComponent GetValue()
     {
@@ -150,14 +171,14 @@ public abstract class TypedPlayerDataSetting<T>(string name, string icon, T def,
     }
 }
 
-public class NumberPlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter)
+public class NumberPlayerDataSetting(string name, string icon, int def, System.Func<int> getter, System.Action<int> setter)
     : TypedPlayerDataSetting<int>(name, icon, def, getter, setter)
 {
     private static bool _isShown;
 
-    public static void ShowPopup(PopupScreen screen, int def, Action<int> callback)
+    public static void ShowPopup(PopupScreen screen, int def, System.Action<int> callback)
     {
-        screen.ShowSetValuePopup("Edit Value", "The new value to set.", new Action<int>(callback), def);
+        screen.ShowSetValuePopup("Edit Value", "The new value to set.", new System.Action<int>(callback), def);
         _isShown = true;
     }
     
@@ -170,11 +191,11 @@ public class NumberPlayerDataSetting(string name, string icon, int def, Func<int
         });
     }
 
-    public override void Serialize(Utf8JsonWriter writer)
+    protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteNumberValue(Getter());
     }
-    public override void Deserialize(ref Utf8JsonReader reader)
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
     {
         Setter(reader.GetInt32());
     }
@@ -195,10 +216,10 @@ public class NumberPlayerDataSetting(string name, string icon, int def, Func<int
     }
 }
 
-public class BoolPlayerDataSetting(string name, string icon, bool def, Func<bool> getter, Action<bool> setter)
+public class BoolPlayerDataSetting(string name, string icon, bool def, System.Func<bool> getter, System.Action<bool> setter)
     : TypedPlayerDataSetting<bool>(name, icon, def, getter, setter)
 {
-    public static void ShowPopup(PopupScreen screen, bool def, Action<bool> callback)
+    public static void ShowPopup(PopupScreen screen, bool def, System.Action<bool> callback)
     {
         var value = def;
         var popupBody = screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Edit Value", "The new value to set.",
@@ -208,7 +229,7 @@ public class BoolPlayerDataSetting(string name, string icon, bool def, Func<bool
         popupBody.AddModHelperComponent(
             ModHelperCheckbox.Create(new Info("Checkbox", 0, -275, 200),
                 value, VanillaSprites.SmallSquareDarkInner,
-                new Action<bool>(b => value = b)));
+                new System.Action<bool>(b => value = b)));
 
         var spacer = popupBody.transform.parent.gameObject.AddModHelperPanel(new Info("Spacer", 200));
         spacer.transform.MoveAfterSibling(popupBody.transform, true);
@@ -223,11 +244,11 @@ public class BoolPlayerDataSetting(string name, string icon, bool def, Func<bool
         });
     }
 
-    public override void Serialize(Utf8JsonWriter writer)
+    protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteBooleanValue(Getter());
     }
-    public override void Deserialize(ref Utf8JsonReader reader)
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
     {
         Setter(reader.GetBoolean());
     }
@@ -275,7 +296,7 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
         _id = id;
     }
 
-    public PurchasePlayerDataSetting(string name, string icon, string id, Func<bool> getter, Action<bool> setter) : base(
+    public PurchasePlayerDataSetting(string name, string icon, string id, System.Func<bool> getter, System.Action<bool> setter) : base(
         name, icon, false, getter, setter)
     {
         _id = id;
@@ -346,7 +367,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     protected override void ShowEditValuePopup(PopupScreen screen)
     {
         ModHelperTable? settings = null;
-        Action<char>? tabListener = null;
+        System.Action<char>? tabListener = null;
 
         var affectedValue = 0;
 
@@ -446,11 +467,11 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
                 var input = ModHelperInputField.Create(new Info("WinCount"),
                     modeInfo.timesCompleted.ToString(), VanillaSprites.BlueInsertPanelRound, null,
                     60, TMP_InputField.CharacterValidation.Digit);
-                input.InputField.onSelect.AddListener(new Action<string>(_ =>
+                input.InputField.onSelect.AddListener(new System.Action<string>(_ =>
                 {
                     selectedInput = input;
                 }));
-                input.InputField.onDeselect.AddListener(new Action<string>(_ =>
+                input.InputField.onDeselect.AddListener(new System.Action<string>(_ =>
                 {
                     selectedInput = null;
                 }));
@@ -461,7 +482,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
                 var isClicks = k > 0 && chimps;
                 settings.SetValue(row, 2, ModHelperCheckbox.Create(new Info("NoExit", 100),
                     modeInfo.completedWithoutLoadingSave, VanillaSprites.SmallSquareDarkInner,
-                    new Action<bool>(b =>
+                    new System.Action<bool>(b =>
                     {
                         if (isClicks)
                         {
@@ -493,7 +514,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
         affected.AddText(new Info("Label", 575), "Affected Map(s): ", 60);
         affected.AddDropdown(new Info("Options", 790, 125),
             new[] { "Current Map", $"All {details.difficulty} Maps", "All Maps" }.ToIl2CppList(), 400,
-            new Action<int>(value =>
+            new System.Action<int>(value =>
             {
                 affectedValue = value;
             }), VanillaSprites.BlueInsertPanelRound, 50);
@@ -612,7 +633,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     {
         return details.id+(coop ? "_coop" : "");
     }
-    public override void Serialize(Utf8JsonWriter writer)
+    protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteStartObject();
         foreach (var difficulty in Difficulties.Keys)
@@ -631,7 +652,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
         }
         writer.WriteEndObject();
     }
-    public override void Deserialize(ref Utf8JsonReader reader)
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
     {
         while (reader.Read())
         {
@@ -669,7 +690,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     }
 }
 
-public class RankPlayerDataSetting(Func<Btd6Player> getPlayer) : PlayerDataSetting("Rank", "")
+public class RankPlayerDataSetting(System.Func<Btd6Player> getPlayer) : PlayerDataSetting("Rank", "")
 {
     protected override ModHelperComponent GetValue()
     {
@@ -697,7 +718,7 @@ public class RankPlayerDataSetting(Func<Btd6Player> getPlayer) : PlayerDataSetti
     protected override void ShowEditValuePopup(PopupScreen screen)
     {
         screen.ShowSetValuePopup("Edit Value", "The new value to set.\nRanks above 155 will be converted to veteran ranks.",
-            new Action<int>(n =>
+            new System.Action<int>(n =>
             {
                 getPlayer().Data.seenVeteranRankInfo = true;
                 
@@ -724,14 +745,14 @@ public class RankPlayerDataSetting(Func<Btd6Player> getPlayer) : PlayerDataSetti
         ReloadVisuals?.Invoke();
     }
 
-    public override void Serialize(Utf8JsonWriter writer)
+    protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteStartObject();
         writer.WriteNumber("rank", getPlayer().Data.rank.ValueInt);
         writer.WriteNumber("veteranRank", getPlayer().Data.veteranRank.ValueInt);
         writer.WriteEndObject();
     }
-    public override void Deserialize(ref Utf8JsonReader reader)
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
     {
         var rankInfo = GameData.Instance.rankInfo;
 
@@ -763,7 +784,7 @@ public class RankPlayerDataSetting(Func<Btd6Player> getPlayer) : PlayerDataSetti
     }
 }
 
-public class TowerPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Player> getPlayer) : NumberPlayerDataSetting(
+public class TowerPlayerDataSetting(TowerDetailsModel tower, System.Func<Btd6Player> getPlayer) : NumberPlayerDataSetting(
     LocalizationManager.Instance.Format(tower.towerId),
     tower.GetTower().portrait.GetGUID(), 0,
     () => getPlayer().Data.towerXp.ContainsKey(tower.towerId) ? getPlayer().Data.towerXp[tower.towerId].ValueInt : 0,
@@ -829,7 +850,7 @@ public class TowerPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Player> ge
     }
 }
 
-public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Player> getPlayer) : PlayerDataSetting(
+public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<Btd6Player> getPlayer) : PlayerDataSetting(
     LocalizationManager.Instance.Format(tower.towerId),
     tower.GetTower().instaIcon.GetGUID())
 {
@@ -879,7 +900,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Play
             new Action(() =>
             {
                 PopupScreen.instance.ShowSetValuePopup("Amount to Add", "Input the number of instas to add of each type.",
-                    new Action<int>(AddAll), 1);
+                    new System.Action<int>(AddAll), 1);
             })).AddText(new Info("Text", 300, 100), "Add All", 45);
 
         
@@ -933,7 +954,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Play
 
         var input = popup.AddModHelperComponent(ModHelperInputField.Create(
             new Info("Input", 1250, 150), "", VanillaSprites.BlueInsertPanelRound,
-            new Action<string>(s =>
+            new System.Action<string>(s =>
             {
                 getPlayer().GetInstaTower(tower.towerId, currentTiers).Quantity =
                     s == "" ? 0 : int.Parse(s);
@@ -1012,7 +1033,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Play
     {
         return tower.towerId;
     }
-    public override void Serialize(Utf8JsonWriter writer)
+    protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteStartObject();
         foreach (var tiers in TierSet)
@@ -1021,7 +1042,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Play
         }
         writer.WriteEndObject();
     }
-    public override void Deserialize(ref Utf8JsonReader reader)
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
     {
         while (reader.Read())
         {
@@ -1051,5 +1072,5 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Play
     }
 }
 
-public class ProfilePlayerDataSetting(string name, string icon, bool def, Func<bool> getter, Action<bool> setter)
+public class ProfilePlayerDataSetting(string name, string icon, bool def, System.Func<bool> getter, System.Action<bool> setter)
     : BoolPlayerDataSetting(name, icon, def, getter, setter);

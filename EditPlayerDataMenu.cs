@@ -198,6 +198,11 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
     public static void SerializeAllSettings(FileStream file)
     {
+        if (GetPlayer().OnlineData == null)
+        {
+            Settings["Online Modes"].RemoveAll(s => s.Name.StartsWith("CT")); // contested territory doesn't work w/o OnlineData
+        }
+
         var writer = new Utf8JsonWriter(file);
 
         writer.WriteStartObject();
@@ -219,6 +224,11 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
     public static void DeserializeAllSettings(string file)
     {
+        if (GetPlayer().OnlineData == null)
+        {
+            Settings["Online Modes"].RemoveAll(s => s.Name.StartsWith("CT")); // contested territory doesn't work w/o OnlineData
+        }
+
         ReadOnlySpan<byte> jsonReadOnlySpan = File.ReadAllBytes(file);
         if (jsonReadOnlySpan.StartsWith(Utf8Bom)) jsonReadOnlySpan = jsonReadOnlySpan[Utf8Bom.Length..];
 
