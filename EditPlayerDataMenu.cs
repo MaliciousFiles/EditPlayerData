@@ -294,21 +294,21 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         
         foreach (var power in Game.instance.model.powers)
         {
-            if (power.name is "CaveMonkey" or "DungeonStatue" or "SpookyCreature") continue;
-
+            if (power.name is "CaveMonkey" or "DungeonStatue" or "SpookyCreature" /* or "Skeletor" or "BananaFarmerProPower" or "SuperMonkeyBeaconPower"*/) continue; // excluded powersPro for testing
             Settings["Powers"].Add(new NumberPlayerDataSetting(
                 LocalizationManager.Instance.Format(power.name),
                 power.icon.GetGUID(), 0,
-                () => GetPlayer().GetPowerData(power.name)?.Quantity ?? 0,
+                () => GetPlayer().GetPowerData(power.PowerId)?.Quantity ?? 0, //use the PowerId not name
                 t =>
                 {
-                    if (GetPlayer().IsPowerAvailable(power.name))
+                    if (GetPlayer().IsPowerAvailable(power)) // Put the model power not name 
                     {
-                        GetPlayer().GetPowerData(power.name).Quantity = t;
+                        GetPlayer().GetPowerData(power.PowerId).Quantity = t;
+
                     }
                     else
                     {
-                        GetPlayer().AddPower(power.name, t);
+                       GetPlayer().AddPower(power.PowerId, t);
                     }
                 }));
         }
