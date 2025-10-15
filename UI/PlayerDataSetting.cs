@@ -310,8 +310,11 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
                 "Ninja Kiwi is an incredible company, making great games at low prices. Please consider supporting them if at all possible.",
                 new Action(() =>
                 {
-                    screen.ShowStorePopup(GameData.Instance.storeItems.GetProduct(_id),
-                        new Action(() => ReloadVisuals?.Invoke()));
+                   // screen.ShowStorePopup(GameData.Instance.storeItems.GetProduct(_id),
+                      //  new Action(() => ReloadVisuals?.Invoke()));
+                      //Missing boolean isPurchased
+                    screen.ShowStorePopup(false, GameData.Instance.storeItems.GetProduct(_id),
+                new Action(() => ReloadVisuals?.Invoke()));
                 }), "I will!",
                 new Action(() => base.ShowEditValuePopup(screen)), "I can't :(",
                 Popup.TransitionAnim.Scale, PopupScreen.BackGround.GreyNonDismissable);

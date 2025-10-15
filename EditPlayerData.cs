@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
@@ -23,9 +22,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
+
+
 [assembly: MelonInfo(typeof(EditPlayerData.EditPlayerData), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
 [assembly: MelonGame("Ninja Kiwi", "BloonsTD6")]
-[assembly: MelonOptionalDependencies("System.Windows.Forms")] // loaded manually
 namespace EditPlayerData;
 
 public class EditPlayerData : BloonsTD6Mod
@@ -33,10 +33,6 @@ public class EditPlayerData : BloonsTD6Mod
 
     public override void OnApplicationStart()
     {
-        var versions = Directory.GetDirectories(@"C:\Windows\Microsoft.NET\Framework64\").Where(f=>f.Split('\\')[^1][0] == 'v').ToList();
-        versions.Sort();
-        MelonAssembly.LoadMelonAssembly(versions[^1]+@"\System.Windows.Forms.dll", false);
-
         ModHelper.Msg<EditPlayerData>("EditPlayerData loaded!");
     }
 
@@ -64,73 +60,64 @@ public class EditPlayerData : BloonsTD6Mod
             buttons.AddButton(new Info("Import", 285), VanillaSprites.EditBtn,
                 new Action(() =>
                 {
-                    var dialog = new OpenFileDialog();
-                    dialog.Filter = "Json files (*.json,*.txt)|*.json;*.txt|All files (*.*)|*.*";
-                    dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    dialog.FileName = "playerdata.json";
-                    dialog.DefaultExt = "json";
-                    dialog.Title = "Import From";
-                    dialog.Multiselect = false;
-                    dialog.CheckPathExists = true;
-                    dialog.CheckFileExists = true;
-                    if (dialog.ShowDialog() != DialogResult.OK) return;
-
-                    try
-                    {
-                        EditPlayerDataMenu.DeserializeAllSettings(dialog.FileName);
-                        PopupScreen.instance.SafelyQueue(screen =>
+                    PopupScreen.instance.ShowSetNamePopup("Import From", "Enter the path to your playerdata.json file:", 
+                        new Action<string>((filePath) =>
                         {
-                            screen.ShowOkPopup("Settings successfully loaded from file.");
-                        });
-                    }
-                    catch
-                    {
-                        PopupScreen.instance.SafelyQueue(screen =>
-                        {
-                            screen.ShowOkPopup(
-                                "An error occured while loading. Check the MelonLoader console for messages and ensure the file is in the proper format.");
-                        });
+                            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
-                        throw;
-                    }
+                            try
+                            {
+                                EditPlayerDataMenu.DeserializeAllSettings(filePath);
+                                PopupScreen.instance.SafelyQueue(screen =>
+                                {
+                                    screen.ShowOkPopup("Settings successfully loaded from file.");
+                                });
+                            }
+                            catch
+                            {
+                                PopupScreen.instance.SafelyQueue(screen =>
+                                {
+                                    screen.ShowOkPopup(
+                                        "An error occured while loading. Check the MelonLoader console for messages and ensure the file is in the proper format.");
+                                });
+
+                                throw;
+                            }
+                        }), ""); // Added missing defaultValue argument
                 })); 
             buttons.AddButton(new Info("Settings", 285), VanillaSprites.SettingsBtn,
                 new Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
             buttons.AddButton(new Info("Export", 285), VanillaSprites.ExitGameBtn,
                 new Action(() =>
                 {
-                    var dialog = new SaveFileDialog();
-                    dialog.Filter = "Json files (*.json,*.txt)|*.json;*.txt|All files (*.*)|*.*";
-                    dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    dialog.FileName = "playerdata.json";
-                    dialog.DefaultExt = "json";
-                    dialog.OverwritePrompt = true;
-                    dialog.Title = "Export As";
-                    dialog.CheckPathExists = true;
-                    if (dialog.ShowDialog() != DialogResult.OK) return;
-                    
-                    var file = File.Open(dialog.FileName, FileMode.Create);
-                    try
-                    {
-                        EditPlayerDataMenu.SerializeAllSettings(file);
-                        PopupScreen.instance.SafelyQueue(screen =>
+                    PopupScreen.instance.ShowSetNamePopup("Export As", "Enter the path to save playerdata.json:", 
+                        new Action<string>((filePath) =>
                         {
-                            screen.ShowOkPopup("Settings successfully saved to file.");
-                        });
-                    }
-                    catch
-                    {
-                        PopupScreen.instance.SafelyQueue(screen =>
-                        {
-                            screen.ShowOkPopup("An error occured while saving. Check the MelonLoader console for messages.");
-                        });
+                            if (string.IsNullOrEmpty(filePath)) return;
 
-                        throw;
-                    }
-                    finally
-                    {
-                        file.Close();
-                    }
+                            var file = File.Open(filePath, FileMode.Create);
+                            try
+                            {
+                                EditPlayerDataMenu.SerializeAllSettings(file);
+                                PopupScreen.instance.SafelyQueue(screen =>
+                                {
+                                    screen.ShowOkPopup("Settings successfully saved to file.");
+                                });
+                            }
+                            catch
+                            {
+                                PopupScreen.instance.SafelyQueue(screen =>
+                                {
+                                    screen.ShowOkPopup("An error occured while saving. Check the MelonLoader console for messages.");
+                                });
+
+                                throw;
+                            }
+                            finally
+                            {
+                                file.Close();
+                            }
+                        }), ""); // Added missing defaultValue argument
                 }));
             
             var texts = button.AddPanel(new Info("Texts", 2000, 100), null, RectTransform.Axis.Horizontal, 100);
