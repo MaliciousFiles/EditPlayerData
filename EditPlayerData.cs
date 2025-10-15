@@ -33,7 +33,7 @@ public class EditPlayerData : BloonsTD6Mod
 
     public override void OnApplicationStart()
     {
-        ModHelper.Msg<EditPlayerData>("EditPlayerData loaded! PLESASE");
+        ModHelper.Msg<EditPlayerData>("EditPlayerData loaded!");
     }
 
     public override void OnProfileLoaded(ProfileModel result)
