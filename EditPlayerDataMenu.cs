@@ -3,17 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
+using EditPlayerData.UI;
 using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
-using Il2CppAssets.Scripts.Data.Artifacts;
 using Il2CppAssets.Scripts.Data.Boss;
-using Il2CppAssets.Scripts.Data.TrophyStore;
+using Il2CppAssets.Scripts.Data.Legends;
 using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.Store.Loot;
@@ -22,16 +21,10 @@ using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Achievements;
 using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
-using Il2CppAssets.Scripts.Unity.UI_New.Legends;
-using Il2CppAssets.Scripts.Unity.UI_New.Odyssey;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.Runtime;
-using Il2CppNinjaKiwi.Common;
-using Il2CppNinjaKiwi.LiNK.Client.Streams;
 using Il2CppSystem.Linq;
-using Il2CppSystem.Text;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -39,7 +32,7 @@ using Action = System.Action;
 using Enum = System.Enum;
 using Object = Il2CppSystem.Object;
 
-namespace EditPlayerData.UI;
+namespace EditPlayerData;
 
 public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 {
@@ -53,11 +46,12 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     "btd6_fasttrackpack",
                     () => GetPlayer().Data.unlockedFastTrack,
                     t => GetPlayer().Data.unlockedFastTrack = t),
-                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendsBtn, "btd6_legendsrogue"),
+                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendRogueShop, "btd6_legendsrogue"),
+                new PurchasePlayerDataSetting("Unlocked Frontier Legends", VanillaSprites.LegendFrontierShop, "btd6_legendsfrontier"),
                 new PurchasePlayerDataSetting("Unlocked Map Editor", VanillaSprites.MapEditorBtn, "btd6_mapeditorsupporter_new"),
                 new NumberPlayerDataSetting("Monkey Money", VanillaSprites.MonkeyMoneyShop, 0,
                     () => GetPlayer().Data.monkeyMoney.ValueInt, t => GetPlayer().Data.monkeyMoney.Value = t),
-                new NumberPlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,
+                new MonkeyKnowledgePlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,
                     () => GetPlayer().Data.knowledgePoints.ValueInt, t => GetPlayer().Data.knowledgePoints.Value = t),
                 new RankPlayerDataSetting(GetPlayer),
                 
@@ -134,13 +128,13 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     }),
                 new NumberPlayerDataSetting("Tower Gift Unlock Pops", VanillaSprites.GiftBoxIcon, 0,
                     () => GetPlayer().Data.towerUnlockProgresses
-                        .TryGetValue(GetPlayer().Data.selectedTowerForUnlockProgression, out var val)
+                        .TryGetValue(GetPlayer().Data.selectedTowerForUnlockProgression ?? "editplayerdata", out var val)
                         ? val.ValueInt
                         : 0,
                     t =>
                     {
                         var dict = GetPlayer().Data.towerUnlockProgresses;
-                        var key = GetPlayer().Data.selectedTowerForUnlockProgression;
+                        var key = GetPlayer().Data.selectedTowerForUnlockProgression ?? "editplayerdata";
                         if (dict.TryGetValue(key, out var val)) val.Value = t;
                         else dict[key] = new KonFuze_NoShuffle(t);
                     }),
@@ -221,7 +215,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         writer.Dispose();
     }
     
-    private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
+    private static ReadOnlySpan<byte> Utf8Bom => new byte[] {0xEF, 0xBB, 0xBF};
     public static void DeserializeAllSettings(string file)
     {
         if (GetPlayer().OnlineData == null)
@@ -296,25 +290,22 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         {
             if (power.name is "CaveMonkey" or "DungeonStatue" or "SpookyCreature") continue;
 
-            Settings["Powers"].Add(new NumberPlayerDataSetting(
-                LocalizationManager.Instance.Format(power.name),
-                power.icon.GetGUID(), 0,
-                () => GetPlayer().GetPowerData(power.name)?.Quantity ?? 0,
-                t =>
+            Settings["Powers"].Add(new PowerPlayerDataSetting(power, GetPlayer).Unlockable(
+                () => power.IsPowerPro && (!data.powersProSaveData.dataByPower.TryGetValue(power.PowerId, out var model) || model.unlockedTier.ValueInt == 0),
+                () =>
                 {
-                    if (GetPlayer().IsPowerAvailable(power.name))
+                    if (!data.powersProSaveData.dataByPower.ContainsKey(power.PowerId))
                     {
-                        GetPlayer().GetPowerData(power.name).Quantity = t;
+                        data.powersProSaveData.dataByPower[power.PowerId] = new PowersProPowerSaveData();
                     }
-                    else
-                    {
-                        GetPlayer().AddPower(power.name, t);
-                    }
+                    data.powersProSaveData.dataByPower[power.PowerId].unlockedTier.Value = 1;
                 }));
         }
 
         foreach (var tower in Game.instance.GetTowerDetailModels())
         {
+            if (tower.towerId == "Sheriff") continue;
+            
             Settings["Towers"].Add(new TowerPlayerDataSetting(tower, GetPlayer).Unlockable(
                 () => !data.unlockedTowers.Contains(tower.towerId),
                 () =>

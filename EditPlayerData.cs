@@ -1,31 +1,23 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using EditPlayerData;
-using EditPlayerData.UI;
 using HarmonyLib;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Unity.UI_New.Settings;
 using Il2CppAssets.Scripts.Utils;
-using Il2CppInterop.Runtime;
 using Il2CppTMPro;
 using MelonLoader;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
 
 [assembly: MelonInfo(typeof(EditPlayerData.EditPlayerData), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
 [assembly: MelonGame("Ninja Kiwi", "BloonsTD6")]
-[assembly: MelonOptionalDependencies("System.Windows.Forms")] // loaded manually
 namespace EditPlayerData;
 
 public class EditPlayerData : BloonsTD6Mod
@@ -33,10 +25,7 @@ public class EditPlayerData : BloonsTD6Mod
 
     public override void OnApplicationStart()
     {
-        var versions = Directory.GetDirectories(@"C:\Windows\Microsoft.NET\Framework64\").Where(f=>f.Split('\\')[^1][0] == 'v').ToList();
-        versions.Sort();
-        MelonAssembly.LoadMelonAssembly(versions[^1]+@"\System.Windows.Forms.dll", false);
-
+        Directory.CreateDirectory("EditPlayerData");
         ModHelper.Msg<EditPlayerData>("EditPlayerData loaded!");
     }
 
@@ -61,76 +50,116 @@ public class EditPlayerData : BloonsTD6Mod
             
             var buttons = button.AddPanel(new Info("Buttons", 1700, 285), null, RectTransform.Axis.Horizontal, 100+(500-285));
             buttons.LayoutGroup.childAlignment = TextAnchor.UpperCenter;
+
             buttons.AddButton(new Info("Import", 285), VanillaSprites.EditBtn,
                 new Action(() =>
                 {
-                    var dialog = new OpenFileDialog();
-                    dialog.Filter = "Json files (*.json,*.txt)|*.json;*.txt|All files (*.*)|*.*";
-                    dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    dialog.FileName = "playerdata.json";
-                    dialog.DefaultExt = "json";
-                    dialog.Title = "Import From";
-                    dialog.Multiselect = false;
-                    dialog.CheckPathExists = true;
-                    dialog.CheckFileExists = true;
-                    if (dialog.ShowDialog() != DialogResult.OK) return;
-
-                    try
+                    PopupScreen.instance.SafelyQueue(screen =>
                     {
-                        EditPlayerDataMenu.DeserializeAllSettings(dialog.FileName);
-                        PopupScreen.instance.SafelyQueue(screen =>
-                        {
-                            screen.ShowOkPopup("Settings successfully loaded from file.");
-                        });
-                    }
-                    catch
-                    {
-                        PopupScreen.instance.SafelyQueue(screen =>
-                        {
-                            screen.ShowOkPopup(
-                                "An error occured while loading. Check the MelonLoader console for messages and ensure the file is in the proper format.");
-                        });
+                        var files = Directory
+                            .EnumerateFiles(Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData"))
+                            .Select(Path.GetFileNameWithoutExtension)
+                            .ToIl2CppList();
+                        files.Sort();
 
-                        throw;
-                    }
+                        if (files._size <= 0)
+                        {
+                            var okPopup = screen.ShowOkPopup(
+                                "No savefiles found. Additional files can be added to:").WaitForCompletion().FindObject("Layout");
+
+                            var okText = okPopup.AddModHelperComponent(ModHelperText.Create(new Info("Text",2000, 50),
+                                Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData"), 40));
+                            okText.transform.MoveAfterSibling(okPopup.FindObject("Body").transform, true);
+                            
+                            var okSpacing = okPopup.AddModHelperPanel(new Info("Spacing", 130));
+                            okSpacing.transform.MoveAfterSibling(okText, true);
+                            return;
+                        }
+                        
+                        ModHelperDropdown? dropdown = null;
+                        var popup = screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Import Settings",
+                            "Select the savefile to load.",
+                            new Action(() =>
+                            {
+                                try
+                                {
+                                    EditPlayerDataMenu.DeserializeAllSettings(Path.Join("EditPlayerData", dropdown!.Text.Text.text + ".json"));
+                                    screen.ShowOkPopup("Settings successfully loaded from file.");
+                                }
+                                catch
+                                {
+                                    screen.ShowOkPopup(
+                                        "An error occured while loading. Check the MelonLoader console for messages and ensure the file is in the proper format.");
+                                    throw;
+                                }
+                            }), "Import", null, "Cancel",
+                            Popup.TransitionAnim.Scale, PopupScreen.BackGround.Grey).WaitForCompletion().FindObject("Layout");
+                        
+                        var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("Text",2000, 50),
+                            Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData"), 40));
+                        text.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
+                        
+                        var spacing = popup.AddModHelperPanel(new Info("Spacing", 60));
+                        spacing.transform.MoveAfterSibling(text, true);
+                        
+                        dropdown = popup.AddModHelperComponent(ModHelperDropdown.Create(new Info("FileDropdown", 790, 125),
+                            files, 550, new Action<int>(_ => { }),
+                            VanillaSprites.BlueInsertPanelRound, 60f));
+                        dropdown.transform.MoveAfterSibling(spacing, true);
+                        
+                        spacing = popup.AddModHelperPanel(new Info("Spacing", 130));
+                        spacing.transform.MoveAfterSibling(dropdown, true);
+                    });
                 })); 
             buttons.AddButton(new Info("Settings", 285), VanillaSprites.SettingsBtn,
                 new Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
             buttons.AddButton(new Info("Export", 285), VanillaSprites.ExitGameBtn,
                 new Action(() =>
                 {
-                    var dialog = new SaveFileDialog();
-                    dialog.Filter = "Json files (*.json,*.txt)|*.json;*.txt|All files (*.*)|*.*";
-                    dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    dialog.FileName = "playerdata.json";
-                    dialog.DefaultExt = "json";
-                    dialog.OverwritePrompt = true;
-                    dialog.Title = "Export As";
-                    dialog.CheckPathExists = true;
-                    if (dialog.ShowDialog() != DialogResult.OK) return;
-                    
-                    var file = File.Open(dialog.FileName, FileMode.Create);
-                    try
+                    PopupScreen.instance.SafelyQueue(screen =>
                     {
-                        EditPlayerDataMenu.SerializeAllSettings(file);
-                        PopupScreen.instance.SafelyQueue(screen =>
-                        {
-                            screen.ShowOkPopup("Settings successfully saved to file.");
-                        });
-                    }
-                    catch
-                    {
-                        PopupScreen.instance.SafelyQueue(screen =>
-                        {
-                            screen.ShowOkPopup("An error occured while saving. Check the MelonLoader console for messages.");
-                        });
+                        ModHelperInputField? input = null;
+                        var popup = screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Export Settings", "Input a title for this savefile.",
+                            new Action(() =>
+                            {
+                                var title = input!.CurrentValue;
 
-                        throw;
-                    }
-                    finally
-                    {
-                        file.Close();
-                    }
+                                
+                                FileStream? file = null;
+                                try
+                                {
+                                    file = File.Open(Path.Join("EditPlayerData", title + ".json"), FileMode.Create);
+                                    EditPlayerDataMenu.SerializeAllSettings(file);
+                                    var popup = screen.ShowOkPopup("Settings successfully saved:").WaitForCompletion().FindObject("Layout");
+                                    
+                                    var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("Text",2000, 50),
+                                        Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData", title+".json"), 40));
+                                    text.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
+                                    
+                                    var spacing = popup.AddModHelperPanel(new Info("Spacing", 130));
+                                    spacing.transform.MoveAfterSibling(text, true);
+                                }
+                                catch
+                                {
+                                    screen.ShowOkPopup(
+                                        "An error occured while saving. Check the MelonLoader console for messages.");
+                                    throw;
+                                }
+                                finally
+                                {
+                                    file?.Close();
+                                }
+                            }), "Export", null, "Cancel",
+                            Popup.TransitionAnim.Scale, PopupScreen.BackGround.Grey).WaitForCompletion().FindObject("Layout");
+
+                        input = popup.AddModHelperComponent(ModHelperInputField.Create(new Info("Input", 790, 125),
+                            "playerdata", VanillaSprites.BlueInsertPanelRound, fontSize: 60));
+                        input.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
+                        
+                        var spacing = popup.AddModHelperPanel(new Info("Spacing", 130));
+                        spacing.transform.MoveAfterSibling(input, true);
+
+                    });
                 }));
             
             var texts = button.AddPanel(new Info("Texts", 2000, 100), null, RectTransform.Axis.Horizontal, 100);

@@ -5,7 +5,7 @@
         <Configurations>Debug;Release</Configurations>
         <Nullable>enable</Nullable>
         <AssemblyName>EditPlayerData</AssemblyName>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>10</LangVersion>
         <Optimize>False</Optimize>
         <DebugType>embedded</DebugType>
     </PropertyGroup>

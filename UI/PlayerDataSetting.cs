@@ -1,8 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Nodes;
-using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
@@ -10,12 +9,9 @@ using BTD_Mod_Helper.Extensions;
 using EditPlayerData.Utils;
 using HarmonyLib;
 using Il2CppAssets.Scripts.Data;
-using Il2CppAssets.Scripts.Data.Knowledge.RelicKnowledge;
 using Il2CppAssets.Scripts.Data.MapSets;
-using Il2CppAssets.Scripts.Data.Store;
-using Il2CppAssets.Scripts.Data.TrophyStore;
-using Il2CppAssets.Scripts.Models;
 using Il2CppAssets.Scripts.Models.Artifacts;
+using Il2CppAssets.Scripts.Models.Powers;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.TowerSets;
 using Il2CppAssets.Scripts.Unity;
@@ -23,24 +19,21 @@ using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
-using Il2CppNinjaKiwi.Common.ResourceUtils;
 using Il2CppNinjaKiwi.Common;
-using Il2CppSystem;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using Action = System.Action;
+using InstaTowerModel = Il2CppAssets.Scripts.Models.Profile.InstaTowerModel;
 using Math = System.Math;
-
-// ReSharper disable AccessToModifiedClosure
 
 namespace EditPlayerData.UI;
 
-public abstract class PlayerDataSetting(string name, string icon)
+public abstract class PlayerDataSetting
 {
-    public readonly string Name = name;
-    protected readonly string Icon = icon;
+    public readonly string Name;
+    protected readonly string Icon;
 
     public Action? ReloadVisuals
     {
@@ -49,8 +42,18 @@ public abstract class PlayerDataSetting(string name, string icon)
     }
     
     private bool _unlockable;
-    private System.Func<bool>? _isLocked;
+    private Func<bool>? _isLocked;
     private Action? _unlock;
+    private readonly string _name;
+    private readonly string _icon;
+
+    protected PlayerDataSetting(string name, string icon)
+    {
+        _name = name;
+        _icon = icon;
+        Name = name;
+        Icon = icon;
+    }
 
     public ModHelperButton GetEditButton()
     {
@@ -82,7 +85,7 @@ public abstract class PlayerDataSetting(string name, string icon)
         return !_unlockable || !_isLocked!();
     }
 
-    public PlayerDataSetting Unlockable(System.Func<bool> isLocked, Action unlock)
+    public PlayerDataSetting Unlockable(Func<bool> isLocked, Action unlock)
     {
         _unlockable = true;
         _isLocked = isLocked;
@@ -124,7 +127,7 @@ public abstract class PlayerDataSetting(string name, string icon)
 
     public virtual string GetId()
     {
-        return name.ToLower().Replace(' ', '_') + "[" + icon + "]";
+        return _name.ToLower().Replace(' ', '_') + "[" + _icon + "]";
     }
 
     public void Serialize(Utf8JsonWriter writer)
@@ -142,6 +145,8 @@ public abstract class PlayerDataSetting(string name, string icon)
     public void Deserialize(ref Utf8JsonReader reader)
     {
         if (reader.TokenType == JsonTokenType.String && reader.GetString() == "LOCKED") return;
+        Unlock(); // checks unlockable in func
+        
         DeserializeSelf(ref reader);
     }
     
@@ -149,11 +154,18 @@ public abstract class PlayerDataSetting(string name, string icon)
     protected abstract void DeserializeSelf(ref Utf8JsonReader reader);
 }
 
-public abstract class TypedPlayerDataSetting<T>(string name, string icon, T def, System.Func<T> getter, System.Action<T> setter)
-    : PlayerDataSetting(name, icon)
+public abstract class TypedPlayerDataSetting<T> : PlayerDataSetting
 {
-    public readonly System.Func<T> Getter = getter;
-    public readonly System.Action<T> Setter = setter;
+    public readonly Func<T> Getter;
+    public readonly Action<T> Setter;
+    private readonly T _def;
+
+    protected TypedPlayerDataSetting(string name, string icon, T def, Func<T> getter, Action<T> setter) : base(name, icon)
+    {
+        _def = def;
+        Getter = getter;
+        Setter = setter;
+    }
 
     protected override ModHelperComponent GetValue()
     {
@@ -166,19 +178,22 @@ public abstract class TypedPlayerDataSetting<T>(string name, string icon, T def,
 
     public override void ResetToDefault()
     {
-        Setter(def);
+        Setter(_def);
         ReloadVisuals?.Invoke();
     }
 }
 
-public class NumberPlayerDataSetting(string name, string icon, int def, System.Func<int> getter, System.Action<int> setter)
-    : TypedPlayerDataSetting<int>(name, icon, def, getter, setter)
+public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
 {
+    public NumberPlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) : base(name, icon, def, getter, setter)
+    {
+    }
+
     private static bool _isShown;
 
-    public static void ShowPopup(PopupScreen screen, int def, System.Action<int> callback)
+    public static void ShowPopup(PopupScreen screen, int def, Action<int> callback)
     {
-        screen.ShowSetValuePopup("Edit Value", "The new value to set.", new System.Action<int>(callback), def);
+        screen.ShowSetValuePopup("Edit Value", "The new value to set.", new Action<int>(callback), def);
         _isShown = true;
     }
     
@@ -216,10 +231,13 @@ public class NumberPlayerDataSetting(string name, string icon, int def, System.F
     }
 }
 
-public class BoolPlayerDataSetting(string name, string icon, bool def, System.Func<bool> getter, System.Action<bool> setter)
-    : TypedPlayerDataSetting<bool>(name, icon, def, getter, setter)
+public class BoolPlayerDataSetting : TypedPlayerDataSetting<bool>
 {
-    public static void ShowPopup(PopupScreen screen, bool def, System.Action<bool> callback)
+    public BoolPlayerDataSetting(string name, string icon, bool def, Func<bool> getter, Action<bool> setter) : base(name, icon, def, getter, setter)
+    {
+    }
+
+    public static void ShowPopup(PopupScreen screen, bool def, Action<bool> callback)
     {
         var value = def;
         var popupBody = screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Edit Value", "The new value to set.",
@@ -229,7 +247,7 @@ public class BoolPlayerDataSetting(string name, string icon, bool def, System.Fu
         popupBody.AddModHelperComponent(
             ModHelperCheckbox.Create(new Info("Checkbox", 0, -275, 200),
                 value, VanillaSprites.SmallSquareDarkInner,
-                new System.Action<bool>(b => value = b)));
+                new Action<bool>(b => value = b)));
 
         var spacer = popupBody.transform.parent.gameObject.AddModHelperPanel(new Info("Spacer", 200));
         spacer.transform.MoveAfterSibling(popupBody.transform, true);
@@ -254,27 +272,34 @@ public class BoolPlayerDataSetting(string name, string icon, bool def, System.Fu
     }
 }
 
-public class ArtifactPlayerDataSetting(ArtifactModelBase artifact)
-    : BoolPlayerDataSetting(LocalizationManager.Instance.Format(artifact.nameLocKey, Rarities[artifact.tier]),
+public class ArtifactPlayerDataSetting : BoolPlayerDataSetting
+{
+    private readonly ArtifactModelBase _artifact;
+
+    public ArtifactPlayerDataSetting(ArtifactModelBase artifact) : base(
+        LocalizationManager.Instance.Format(artifact.nameLocKey, Rarities[artifact.tier]),
         "", false, () => Game.Player.Data.legendsData.unlockedStarterArtifacts.Contains(artifact.ArtifactName),
         t =>
         {
             if (t) Game.Player.Data.legendsData.unlockedStarterArtifacts.Add(artifact.ArtifactName);
             else Game.Player.Data.legendsData.unlockedStarterArtifacts.Remove(artifact.ArtifactName);
         })
-{
-    private static readonly string[] Rarities = ["Common", "Rare", "Legendary"];
+    {
+        _artifact = artifact;
+    }
 
-    public override ModHelperImage GetIcon()
+    private static readonly string[] Rarities = { "Common", "Rare", "Legendary" };
+
+public override ModHelperImage GetIcon()
     {
         var frame = ModHelperImage.Create(new Info("Icon")
         {
             X = -50, Size = 350
-        }, GameData.Instance.rogueData.GetArtifactFrameOfType(artifact.rarityFrameType, artifact.tier).AssetGUID);
+        }, GameData.Instance.rogueData.GetArtifactFrameOfType(_artifact.rarityFrameType, _artifact.tier).AssetGUID);
         frame.AddImage(new Info("Icon")
         {
             Size = 350
-        }, artifact.icon.AssetGUID);
+        }, _artifact.icon.AssetGUID);
         
         return frame;
     }
@@ -296,7 +321,7 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
         _id = id;
     }
 
-    public PurchasePlayerDataSetting(string name, string icon, string id, System.Func<bool> getter, System.Action<bool> setter) : base(
+    public PurchasePlayerDataSetting(string name, string icon, string id, Func<bool> getter, Action<bool> setter) : base(
         name, icon, false, getter, setter)
     {
         _id = id;
@@ -310,7 +335,7 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
                 "Ninja Kiwi is an incredible company, making great games at low prices. Please consider supporting them if at all possible.",
                 new Action(() =>
                 {
-                    screen.ShowStorePopup(GameData.Instance.storeItems.GetProduct(_id),
+                    screen.ShowStorePopup(false, GameData.Instance.storeItems.GetProduct(_id),
                         new Action(() => ReloadVisuals?.Invoke()));
                 }), "I will!",
                 new Action(() => base.ShowEditValuePopup(screen)), "I can't :(",
@@ -325,14 +350,24 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
     }
 }
 
-public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
-    : PlayerDataSetting(LocalizationManager.Instance.Format(details.id), details.mapSprite.AssetGUID)
+public class MapPlayerDataSetting : PlayerDataSetting
 {
+    private readonly MapDetails _details;
+    private readonly MapInfo _map;
+    private readonly bool _coop;
+
+    public MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop) : base(LocalizationManager.Instance.Format(details.id), details.mapSprite.AssetGUID)
+    {
+        _details = details;
+        _map = map;
+        _coop = coop;
+    }
+
     private static readonly Dictionary<string, string[]> Difficulties = new()
     {
-        { "Easy", ["Standard", "PrimaryOnly", "Deflation"] },
-        { "Medium", ["Standard", "MilitaryOnly", "Reverse", "Apopalypse"] },
-        { "Hard", ["Standard", "MagicOnly", "AlternateBloonsRounds", "DoubleMoabHealth", "HalfCash", "Impoppable", "Clicks"] }
+        { "Easy", new[] {"Standard", "PrimaryOnly", "Deflation"} },
+        { "Medium", new[] {"Standard", "MilitaryOnly", "Reverse", "Apopalypse"} },
+        { "Hard", new[] {"Standard", "MagicOnly", "AlternateBloonsRounds", "DoubleMoabHealth", "HalfCash", "Impoppable", "Clicks" } }
     };
 
     private const float MapIconWidthToHeightRatio = 532f / 826f;
@@ -367,7 +402,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     protected override void ShowEditValuePopup(PopupScreen screen)
     {
         ModHelperTable? settings = null;
-        System.Action<char>? tabListener = null;
+        Action<char>? tabListener = null;
 
         var affectedValue = 0;
 
@@ -388,13 +423,13 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
 
                     foreach (var mapMode in (affectedValue switch
                              {
-                                 0 => new[] { details }.ToList(),
-                                 1 => GameData.Instance.mapSet.GetStandardMapsForDifficulty(details.difficulty).ToList(),
+                                 0 => new[] { _details }.ToList(),
+                                 1 => GameData.Instance.mapSet.GetStandardMapsForDifficulty(_details.difficulty).ToList(),
                                  2 => GameData.Instance.mapSet.StandardMaps.ToList(),
                                  _ => new List<MapDetails>()
                              }).Select(m =>
                                  Game.Player.Data.mapInfo.GetMap(m.id).GetOrCreateDifficulty(difficulty)
-                                     .GetOrCreateMode(mode, coop))) 
+                                     .GetOrCreateMode(mode, _coop))) 
                     {
                         mapMode.timesCompleted = wins;
                         mapMode.completedWithoutLoadingSave = noExit;
@@ -407,7 +442,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
         
         settings = popup.AddModHelperComponent(ModHelperTable.Create(
             new Info("MapSettings", 1750, 700), 3,
-            VanillaSprites.InsertPanelWhiteRound, 80, [3, 2, 2],
+            VanillaSprites.InsertPanelWhiteRound, 80, new[] { 3, 2, 2 },
             60, 150, new RectOffset { top = 22, left = 35, right = 35 }));
 
         settings.Background.color = new Color(0.29f, 0.51f, 0.81f);
@@ -453,8 +488,8 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
                 var modeName = k == 0 && !chimps ? difficultyEntry.Key :
                         $"Mode {difficultyEntry.Value[modeIdx]}";
 
-                var modeInfo = map.GetOrCreateDifficulty(difficultyEntry.Key)
-                    .GetOrCreateMode(difficultyEntry.Value[modeIdx], coop);
+                var modeInfo = _map.GetOrCreateDifficulty(difficultyEntry.Key)
+                    .GetOrCreateMode(difficultyEntry.Value[modeIdx], _coop);
 
                 var medalName = $"{difficulty}{(k > 0 ? chimps ? modeInfo.completedWithoutLoadingSave ? "Hematite" : "Ruby" : $"0{k}" : "")}";
 
@@ -467,11 +502,11 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
                 var input = ModHelperInputField.Create(new Info("WinCount"),
                     modeInfo.timesCompleted.ToString(), VanillaSprites.BlueInsertPanelRound, null,
                     60, TMP_InputField.CharacterValidation.Digit);
-                input.InputField.onSelect.AddListener(new System.Action<string>(_ =>
+                input.InputField.onSelect.AddListener(new Action<string>(_ =>
                 {
                     selectedInput = input;
                 }));
-                input.InputField.onDeselect.AddListener(new System.Action<string>(_ =>
+                input.InputField.onDeselect.AddListener(new Action<string>(_ =>
                 {
                     selectedInput = null;
                 }));
@@ -482,7 +517,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
                 var isClicks = k > 0 && chimps;
                 settings.SetValue(row, 2, ModHelperCheckbox.Create(new Info("NoExit", 100),
                     modeInfo.completedWithoutLoadingSave, VanillaSprites.SmallSquareDarkInner,
-                    new System.Action<bool>(b =>
+                    new Action<bool>(b =>
                     {
                         if (isClicks)
                         {
@@ -513,8 +548,8 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
             null, RectTransform.Axis.Horizontal);
         affected.AddText(new Info("Label", 575), "Affected Map(s): ", 60);
         affected.AddDropdown(new Info("Options", 790, 125),
-            new[] { "Current Map", $"All {details.difficulty} Maps", "All Maps" }.ToIl2CppList(), 400,
-            new System.Action<int>(value =>
+            new[] { "Current Map", $"All {_details.difficulty} Maps", "All Maps" }.ToIl2CppList(), 400,
+            new Action<int>(value =>
             {
                 affectedValue = value;
             }), VanillaSprites.BlueInsertPanelRound, 50);
@@ -574,11 +609,11 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
 
     public override void ResetToDefault()
     {
-        if (map.difficult == null) return;
+        if (_map.difficult == null) return;
         
-        foreach (var difficulty in map.difficult)
+        foreach (var difficulty in _map.difficult)
         {
-            foreach (var mode in coop ? difficulty.Value.coopModes : difficulty.Value.modes)
+            foreach (var mode in _coop ? difficulty.Value.coopModes : difficulty.Value.modes)
             {
                 mode.Value.timesCompleted = 0;
                 mode.Value.completedWithoutLoadingSave = false;
@@ -590,8 +625,8 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     
     private MapModeInfo? GetModeInfo(Component medal)
     {
-        return map.GetDifficulty(medal.transform.parent.name.Split("/")[0])?.
-            GetMode(medal.name, coop);
+        return _map.GetDifficulty(medal.transform.parent.name.Split("/")[0])?.
+            GetMode(medal.name, _coop);
     }
 
     private void FillInMedals(Component medals)
@@ -631,7 +666,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     
     public override string GetId()
     {
-        return details.id+(coop ? "_coop" : "");
+        return _details.id+(_coop ? "_coop" : "");
     }
     protected override void SerializeSelf(Utf8JsonWriter writer)
     {
@@ -641,7 +676,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
             writer.WriteStartObject(difficulty);
             foreach (var mode in Difficulties[difficulty])
             {
-                var info = map.GetOrCreateDifficulty(difficulty).GetOrCreateMode(mode, coop);
+                var info = _map.GetOrCreateDifficulty(difficulty).GetOrCreateMode(mode, _coop);
                 
                 writer.WriteStartObject(mode);
                 writer.WriteNumber("timesCompleted", info.timesCompleted);
@@ -666,7 +701,7 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
                 if (reader.TokenType == JsonTokenType.EndObject) break;
 
                 var mode = reader.GetString()!;
-                var info = map.GetOrCreateDifficulty(difficulty).GetOrCreateMode(mode, coop);
+                var info = _map.GetOrCreateDifficulty(difficulty).GetOrCreateMode(mode, _coop);
                 
                 reader.Read(); // start object
                 while (reader.Read())
@@ -690,8 +725,15 @@ public class MapPlayerDataSetting(MapDetails details, MapInfo map, bool coop)
     }
 }
 
-public class RankPlayerDataSetting(System.Func<Btd6Player> getPlayer) : PlayerDataSetting("Rank", "")
+public class RankPlayerDataSetting : PlayerDataSetting
 {
+    private readonly Func<Btd6Player> _getPlayer;
+
+    public RankPlayerDataSetting(Func<Btd6Player> getPlayer) : base("Rank", "")
+    {
+        _getPlayer = getPlayer;
+    }
+
     protected override ModHelperComponent GetValue()
     {
         var panel = ModHelperPanel.Create(new Info("XP", InfoPreset.FillParent),
@@ -699,10 +741,10 @@ public class RankPlayerDataSetting(System.Func<Btd6Player> getPlayer) : PlayerDa
         panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
 
         panel.AddImage(new Info("PlayerRank", 250), VanillaSprites.PlayerXPIcon)
-            .AddText(new Info("PlayerRankText", 250), getPlayer().Data.rank.ValueInt.ToString(), 50);
+            .AddText(new Info("PlayerRankText", 250), _getPlayer().Data.rank.ValueInt.ToString(), 50);
         
         panel.AddImage(new Info("VeteranRank", 250), VanillaSprites.VeteranXPIcon)
-            .AddText(new Info("VeteranRankText", 250), getPlayer().Data.rank.ValueInt == GameData.Instance.rankInfo.GetMaxRank() ? getPlayer().Data.veteranRank.ValueInt.ToString() : "0", 50);
+            .AddText(new Info("VeteranRankText", 250), _getPlayer().Data.rank.ValueInt == GameData.Instance.rankInfo.GetMaxRank() ? _getPlayer().Data.veteranRank.ValueInt.ToString() : "0", 50);
 
         return panel;
     }
@@ -712,35 +754,35 @@ public class RankPlayerDataSetting(System.Func<Btd6Player> getPlayer) : PlayerDa
         return ModHelperImage.Create(new Info("Icon")
         {
             X = -50, Size = 350
-        }, getPlayer().Data.rank.ValueInt == GameData.Instance.rankInfo.GetMaxRank() ? VanillaSprites.VeteranXPIcon : VanillaSprites.PlayerXPIcon);        
+        }, _getPlayer().Data.rank.ValueInt == GameData.Instance.rankInfo.GetMaxRank() ? VanillaSprites.VeteranXPIcon : VanillaSprites.PlayerXPIcon);        
     }
 
     protected override void ShowEditValuePopup(PopupScreen screen)
     {
         screen.ShowSetValuePopup("Edit Value", "The new value to set.\nRanks above 155 will be converted to veteran ranks.",
-            new System.Action<int>(n =>
+            new Action<int>(n =>
             {
-                getPlayer().Data.seenVeteranRankInfo = true;
+                _getPlayer().Data.seenVeteranRankInfo = true;
                 
                 var rankInfo = GameData.Instance.rankInfo;
 
                 var rank = Math.Min(n, rankInfo.GetMaxRank());
                 var veteranRank = Math.Max(n - rankInfo.GetMaxRank(), 0);
 
-                getPlayer().Data.rank.Value = rank;
-                getPlayer().Data.veteranRank.Value = rank == rankInfo.GetMaxRank() ? veteranRank + 1 : 0;
+                _getPlayer().Data.rank.Value = rank;
+                _getPlayer().Data.veteranRank.Value = rank == rankInfo.GetMaxRank() ? veteranRank + 1 : 0;
                 
-                getPlayer().Data.xp.Value = rankInfo.GetRankInfo(rank-1).totalXpNeeded;
-                getPlayer().Data.veteranXp.Value = (long) veteranRank * rankInfo.xpNeededPerVeteranRank;
+                _getPlayer().Data.xp.Value = rankInfo.GetRankInfo(rank-1).totalXpNeeded;
+                _getPlayer().Data.veteranXp.Value = (long) veteranRank * rankInfo.xpNeededPerVeteranRank;
                 
                 ReloadVisuals?.Invoke();
-            }), getPlayer().Data.rank.ValueInt + (getPlayer().Data.rank.ValueInt == GameData.Instance.rankInfo.GetMaxRank() ? getPlayer().Data.veteranRank.ValueInt-1 : 0));
+            }), _getPlayer().Data.rank.ValueInt + (_getPlayer().Data.rank.ValueInt == GameData.Instance.rankInfo.GetMaxRank() ? _getPlayer().Data.veteranRank.ValueInt-1 : 0));
     }
 
     public override void ResetToDefault()
     {
-        getPlayer().Data.xp.Value = getPlayer().Data.veteranXp.Value = 0;
-        getPlayer().CheckAndCorrectLevelBasedOnPlayerXp();
+        _getPlayer().Data.xp.Value = _getPlayer().Data.veteranXp.Value = 0;
+        _getPlayer().CheckAndCorrectLevelBasedOnPlayerXp();
 
         ReloadVisuals?.Invoke();
     }
@@ -748,8 +790,8 @@ public class RankPlayerDataSetting(System.Func<Btd6Player> getPlayer) : PlayerDa
     protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteStartObject();
-        writer.WriteNumber("rank", getPlayer().Data.rank.ValueInt);
-        writer.WriteNumber("veteranRank", getPlayer().Data.veteranRank.ValueInt);
+        writer.WriteNumber("rank", _getPlayer().Data.rank.ValueInt);
+        writer.WriteNumber("veteranRank", _getPlayer().Data.veteranRank.ValueInt);
         writer.WriteEndObject();
     }
     protected override void DeserializeSelf(ref Utf8JsonReader reader)
@@ -774,42 +816,51 @@ public class RankPlayerDataSetting(System.Func<Btd6Player> getPlayer) : PlayerDa
             }
         }
         
-        getPlayer().Data.rank.Value = rank;
-        getPlayer().Data.veteranRank.Value = veteranRank;
+        _getPlayer().Data.rank.Value = rank;
+        _getPlayer().Data.veteranRank.Value = veteranRank;
                 
-        getPlayer().Data.xp.Value = rankInfo.GetRankInfo(rank-1).totalXpNeeded;
-        getPlayer().Data.veteranXp.Value = (long) (veteranRank-1) * rankInfo.xpNeededPerVeteranRank;
+        _getPlayer().Data.xp.Value = rankInfo.GetRankInfo(rank-1).totalXpNeeded;
+        _getPlayer().Data.veteranXp.Value = (long) (veteranRank-1) * rankInfo.xpNeededPerVeteranRank;
 
         reader.Read();
     }
 }
 
-public class TowerPlayerDataSetting(TowerDetailsModel tower, System.Func<Btd6Player> getPlayer) : NumberPlayerDataSetting(
-    LocalizationManager.Instance.Format(tower.towerId),
-    tower.GetTower().portrait.GetGUID(), 0,
-    () => getPlayer().Data.towerXp.ContainsKey(tower.towerId) ? getPlayer().Data.towerXp[tower.towerId].ValueInt : 0,
-    t =>
-    {
-        var data = getPlayer().Data;
-        if (!data.towerXp.ContainsKey(tower.towerId))
-        {
-            data.towerXp[tower.towerId] = new KonFuze_NoShuffle(t);
-        }
-        else
-        {
-            data.towerXp[tower.towerId].Value = t;
-        }
-    })
+public class TowerPlayerDataSetting : NumberPlayerDataSetting
 {
+    private readonly TowerDetailsModel _tower;
+    private readonly Func<Btd6Player> _getPlayer;
+
+    public TowerPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Player> getPlayer) : base(LocalizationManager.Instance.Format(tower.towerId),
+        tower.GetTower().portrait.GetGUID(), 0,
+        () => getPlayer().Data.towerXp.ContainsKey(tower.towerId) ? getPlayer().Data.towerXp[tower.towerId].ValueInt : 0,
+        t =>
+        {
+            var data = getPlayer().Data;
+            if (!data.towerXp.ContainsKey(tower.towerId))
+            {
+                data.towerXp[tower.towerId] = new KonFuze_NoShuffle(t);
+            }
+            else
+            {
+                data.towerXp[tower.towerId].Value = t;
+            }
+        })
+    {
+        _tower = tower;
+        _getPlayer = getPlayer;
+    }
+
     private IEnumerable<string> GetAllUpgrades()
     {
         var model = Game.instance.model;
 
-        var upgrades = model.GetTower(tower.towerId, pathOneTier: 5).appliedUpgrades
-            .Concat(model.GetTower(tower.towerId, pathTwoTier: 5).appliedUpgrades)
-            .Concat(model.GetTower(tower.towerId, pathThreeTier: 5).appliedUpgrades);
-        
-        var paragon = Game.instance.model.GetParagonUpgradeForTowerId(tower.towerId);
+        var upgrades = model.GetTower(_tower.towerId, pathOneTier: 5).appliedUpgrades
+            .Concat(model.GetTower(_tower.towerId, pathTwoTier: 5).appliedUpgrades)
+            .Concat(model.GetTower(_tower.towerId, pathThreeTier: 5).appliedUpgrades);
+            // .Append(_tower.towerId+" Paragon");
+
+        var paragon = model.GetParagonUpgradeForTowerId(_tower.towerId);
         return paragon != null ? upgrades.Append(paragon.name) : upgrades;
     }
 
@@ -819,14 +870,14 @@ public class TowerPlayerDataSetting(TowerDetailsModel tower, System.Func<Btd6Pla
             null, RectTransform.Axis.Horizontal, 100);
         panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
 
-        if (GetAllUpgrades().Any(u => !getPlayer().HasUpgrade(u)))
+        if (GetAllUpgrades().Any(u => !_getPlayer().HasUpgrade(u)))
         {
             panel.AddButton(new Info("UnlockUpgrades", 335, 160), VanillaSprites.GreenBtnLong,
                 new Action(() =>
                 {
                     foreach (var upgrade in GetAllUpgrades())
                     {
-                        getPlayer().Data.acquiredUpgrades.Add(upgrade);
+                        _getPlayer().Data.acquiredUpgrades.Add(upgrade);
                     }
 
                     ReloadVisuals?.Invoke();
@@ -844,16 +895,125 @@ public class TowerPlayerDataSetting(TowerDetailsModel tower, System.Func<Btd6Pla
         return panel;
     }
 
+    protected override void SerializeSelf(Utf8JsonWriter writer)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("xp", Getter());
+        
+        writer.WriteStartObject("upgrades");
+        foreach (var upgrade in GetAllUpgrades())
+        {
+            writer.WriteBoolean(upgrade, _getPlayer().HasUpgrade(upgrade));
+        }
+        writer.WriteEndObject();
+        
+        writer.WriteEndObject();
+    }
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
+    {
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject) return;
+
+            switch (reader.GetString())
+            {
+                case "xp":
+                {
+                    reader.Read();
+                    Setter(reader.GetInt32());
+                    break;
+                }
+                case "upgrades":
+                {
+                    reader.Read(); // start obj
+                    while (reader.Read())
+                    {
+                        if (reader.TokenType == JsonTokenType.EndObject) break;
+                        
+                        var upgrade = reader.GetString();
+                        reader.Read();
+                        var unlocked = reader.GetBoolean();
+
+                        if (unlocked) _getPlayer().Data.acquiredUpgrades.Add(upgrade);
+                        else _getPlayer().Data.acquiredUpgrades.Remove(upgrade);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     public override string GetId()
     {
-        return tower.towerId;
+        return _tower.towerId;
     }
 }
 
-public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<Btd6Player> getPlayer) : PlayerDataSetting(
-    LocalizationManager.Instance.Format(tower.towerId),
-    tower.GetTower().instaIcon.GetGUID())
+public class MonkeyKnowledgePlayerDataSetting : NumberPlayerDataSetting
 {
+    public MonkeyKnowledgePlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) : base(name, icon, def, getter, setter) { }
+    
+    protected override void SerializeSelf(Utf8JsonWriter writer)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("amt", Getter());
+        
+        writer.WriteStartObject("knowledge");
+        foreach (var knowledge in Game.instance.model.allKnowledge)
+        {
+            writer.WriteBoolean(knowledge.name, Game.Player.Data.acquiredKnowledge.Contains(knowledge.name));
+        }
+        writer.WriteEndObject();
+        
+        writer.WriteEndObject();
+    }
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
+    {
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject) return;
+
+            switch (reader.GetString())
+            {
+                case "amt":
+                {
+                    reader.Read();
+                    Setter(reader.GetInt32());
+                    break;
+                }
+                case "knowledge":
+                {
+                    reader.Read(); // start obj
+                    while (reader.Read())
+                    {
+                        if (reader.TokenType == JsonTokenType.EndObject) break;
+                        
+                        var knowledge = reader.GetString();
+                        reader.Read();
+                        var unlocked = reader.GetBoolean();
+
+                        if (unlocked) Game.Player.Data.acquiredKnowledge.Add(knowledge);
+                        else Game.Player.Data.acquiredKnowledge.Remove(knowledge);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
+public class InstaMonkeyPlayerDataSetting : PlayerDataSetting
+{
+    private readonly TowerDetailsModel _tower;
+    private readonly Func<Btd6Player> _getPlayer;
+
+    public InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Player> getPlayer) : base(LocalizationManager.Instance.Format(tower.towerId),
+        tower.GetTower().instaIcon.GetGUID())
+    {
+        _tower = tower;
+        _getPlayer = getPlayer;
+    }
+
     private static readonly HashSet<int[]> TierSet = new(new TowerTiersEqualityComparer());
     static InstaMonkeyPlayerDataSetting()
     {
@@ -879,13 +1039,13 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
     
     public void SetAll(int n)
     {
-        foreach (var tiers in TierSet) getPlayer().GetInstaTower(tower.towerId, tiers).Quantity = n;                    
+        foreach (var tiers in TierSet) _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity = n;                    
 
         ReloadVisuals?.Invoke();
     }
     public void AddAll(int n)
     {
-        foreach (var tiers in TierSet) getPlayer().GetInstaTower(tower.towerId, tiers).Quantity += n;                    
+        foreach (var tiers in TierSet) _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity += n;                    
 
         ReloadVisuals?.Invoke();
     }
@@ -900,7 +1060,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
             new Action(() =>
             {
                 PopupScreen.instance.ShowSetValuePopup("Amount to Add", "Input the number of instas to add of each type.",
-                    new System.Action<int>(AddAll), 1);
+                    new Action<int>(AddAll), 1);
             })).AddText(new Info("Text", 300, 100), "Add All", 45);
 
         
@@ -908,14 +1068,14 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
                 "Count:", 60)
             .Text.alignment = TextAlignmentOptions.Right;
         panel.AddText(new Info("CountValue") { Flex = 3 },
-            getPlayer().GetInstaTowerGroupQuanity(tower.towerId).ToString(), 75)
+            _getPlayer().GetInstaTowerGroupQuanity(_tower.towerId).ToString(), 75)
             .Text.alignment = TextAlignmentOptions.Left;
         
         panel.AddText(new Info("CollectionLabel") { Flex = 5 },
                 "Collection:", 60)
             .Text.alignment = TextAlignmentOptions.Right;
         panel.AddText(new Info("CollectionValue") { Flex = 4 },
-                $"{getPlayer().GetInstaTowers(tower.towerId).Count} / 64", 75)
+                $"{_getPlayer().GetInstaTowers(_tower.towerId).Count} / 64", 75)
             .Text.alignment = TextAlignmentOptions.Left;
         
         return panel;
@@ -923,7 +1083,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
 
     protected override void ShowEditValuePopup(PopupScreen screen)
     {
-        var instas = getPlayer().Data.instaTowers[tower.towerId];
+        var instas = _getPlayer().Data.instaTowers[_tower.towerId];
         var oldInstas = instas.ToList().Select(t =>
             InstaTowerModel.FromInt32(InstaTowerModel.ToInt32(t)));
         
@@ -933,12 +1093,12 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
                 // I have to finagle this bc I don't know how to instantiate Il2Cpp predicates :/
                 var towers = instas.ToList();
                 towers.RemoveAll(t => t.Quantity == 0);
-                getPlayer().Data.instaTowers[tower.towerId] = towers.ToIl2CppList();
+                _getPlayer().Data.instaTowers[_tower.towerId] = towers.ToIl2CppList();
                 
                 ReloadVisuals?.Invoke();
             }), "Ok", new Action(() =>
             {
-                getPlayer().Data.instaTowers[tower.towerId] = oldInstas.ToIl2CppList();
+                _getPlayer().Data.instaTowers[_tower.towerId] = oldInstas.ToIl2CppList();
             }), "Cancel",
             Popup.TransitionAnim.Scale, PopupScreen.BackGround.Grey).WaitForCompletion().FindObject("Layout");
 
@@ -954,9 +1114,9 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
 
         var input = popup.AddModHelperComponent(ModHelperInputField.Create(
             new Info("Input", 1250, 150), "", VanillaSprites.BlueInsertPanelRound,
-            new System.Action<string>(s =>
+            new Action<string>(s =>
             {
-                getPlayer().GetInstaTower(tower.towerId, currentTiers).Quantity =
+                _getPlayer().GetInstaTower(_tower.towerId, currentTiers).Quantity =
                     s == "" ? 0 : int.Parse(s);
             }), 80, TMP_InputField.CharacterValidation.Digit));
         input.transform.MoveAfterSibling(tiersPanel.transform, true);
@@ -1000,9 +1160,9 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
                 input.InputField.Select();
                 
                 number.SetText(currentTiers[tierIdx].ToString());
-                input.SetText(getPlayer().GetInstaTower(tower.towerId, currentTiers).Quantity.ToString());
+                input.SetText(_getPlayer().GetInstaTower(_tower.towerId, currentTiers).Quantity.ToString());
                 sprite.Image.SetSprite(Game.instance.model
-                    .GetTower(tower.towerId, currentTiers[0], currentTiers[1], currentTiers[2])
+                    .GetTower(_tower.towerId, currentTiers[0], currentTiers[1], currentTiers[2])
                     .instaIcon.AssetGUID);
 
                 for (var j = 0; j < tiersPanel.transform.childCount; j++)
@@ -1011,11 +1171,11 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
                     
                     tempTiers[j] = currentTiers[j]+1;
                     UpdateArrow(tiersPanel.transform.GetChild(j).FindChild("More").GetComponent<ModHelperButton>(),
-                        Game.instance.model.GetTower(tower.towerId, tempTiers[0], tempTiers[1], tempTiers[2]) != null);
+                        Game.instance.model.GetTower(_tower.towerId, tempTiers[0], tempTiers[1], tempTiers[2]) != null);
                     
                     tempTiers[j] = currentTiers[j]-1;
                     UpdateArrow(tiersPanel.transform.GetChild(j).FindChild("Less").GetComponent<ModHelperButton>(),
-                        Game.instance.model.GetTower(tower.towerId, tempTiers[0], tempTiers[1], tempTiers[2]) != null);
+                        Game.instance.model.GetTower(_tower.towerId, tempTiers[0], tempTiers[1], tempTiers[2]) != null);
                 }
             };
 
@@ -1025,20 +1185,20 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
 
     public override void ResetToDefault()
     {
-        getPlayer().Data.instaTowers[tower.towerId]?.Clear();
+        _getPlayer().Data.instaTowers[_tower.towerId]?.Clear();
         ReloadVisuals?.Invoke();
     }
 
     public override string GetId()
     {
-        return tower.towerId;
+        return _tower.towerId;
     }
     protected override void SerializeSelf(Utf8JsonWriter writer)
     {
         writer.WriteStartObject();
         foreach (var tiers in TierSet)
         {
-            writer.WriteNumber(string.Join(",", tiers), getPlayer().GetInstaTower(tower.towerId, tiers).Quantity);
+            writer.WriteNumber(string.Join(",", tiers), _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity);
         }
         writer.WriteEndObject();
     }
@@ -1054,7 +1214,7 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
             reader.Read();
             var quantity = reader.GetInt32();
 
-            getPlayer().GetInstaTower(tower.towerId, tiers).Quantity = quantity;
+            _getPlayer().GetInstaTower(_tower.towerId, tiers).Quantity = quantity;
         }
     }
 
@@ -1072,5 +1232,107 @@ public class InstaMonkeyPlayerDataSetting(TowerDetailsModel tower, System.Func<B
     }
 }
 
-public class ProfilePlayerDataSetting(string name, string icon, bool def, System.Func<bool> getter, System.Action<bool> setter)
-    : BoolPlayerDataSetting(name, icon, def, getter, setter);
+public class ProfilePlayerDataSetting : BoolPlayerDataSetting
+{
+    public ProfilePlayerDataSetting(string name, string icon, bool def, Func<bool> getter, Action<bool> setter) : base(name, icon, def, getter, setter)
+    {
+    }
+}
+
+public class PowerPlayerDataSetting : NumberPlayerDataSetting
+{
+    private readonly PowerModel _power;
+    private readonly Func<Btd6Player> _getPlayer;
+
+    public PowerPlayerDataSetting(PowerModel power, Func<Btd6Player> getPlayer) : base(LocalizationManager.Instance.Format(power.name),
+        power.icon.GetGUID(), 0,
+        () => getPlayer().GetPowerData(power.PowerId)?.Quantity ?? 0,
+        t =>
+        {
+            if (getPlayer().IsPowerAvailable(power)) getPlayer().GetPowerData(power.PowerId).Quantity = t;
+            else getPlayer().AddPower(power.PowerId, t);
+        })
+    {
+        _power = power;
+        _getPlayer = getPlayer;
+    }
+    
+    protected override ModHelperComponent GetValue()
+    {
+        var panel = ModHelperPanel.Create(new Info("Value", InfoPreset.FillParent),
+            null, RectTransform.Axis.Horizontal, 100);
+        panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
+
+        var data = _getPlayer().Data!;
+        if (_power.IsPowerPro && data.powersProSaveData.dataByPower[_power.PowerId].unlockedTier.Value < 3)
+        {
+            panel.AddButton(new Info("UnlockUpgrades", 335, 160), VanillaSprites.GreenBtnLong,
+                new Action(() =>
+                {
+                    data.powersProSaveData.dataByPower[_power.PowerId].unlockedTier.Value = 3;
+                    ReloadVisuals?.Invoke();
+                })).AddText(new Info("Text", 300, 100), "Unlock All Upgrades", 40);
+        }
+        else
+        {
+            panel.AddPanel(new Info("Spacing", 335));
+        }
+        
+        var text = base.GetValue();
+        text.SetInfo(new Info("ValueText", 320));
+        panel.Add(text);
+
+        return panel;
+    }
+
+    protected override void SerializeSelf(Utf8JsonWriter writer)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("quantity", Getter());
+
+        if (_power.IsPowerPro)
+        {
+            writer.WriteNumber("upgradeTier", _getPlayer().Data.powersProSaveData.dataByPower.TryGetValue(_power.PowerId, out var model) ? model.unlockedTier.ValueInt : 0);
+        }
+        
+        writer.WriteEndObject();
+    }
+    protected override void DeserializeSelf(ref Utf8JsonReader reader)
+    {
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject) return;
+
+            switch (reader.GetString())
+            {
+                case "quantity":
+                {
+                    reader.Read();
+                    Setter(reader.GetInt32());
+                    break;
+                }
+                case "upgradeTier":
+                {
+                    reader.Read();
+                    var tier = reader.GetInt32();
+                    if (tier <= 0)
+                    {
+                        _getPlayer().Data.powersProSaveData.dataByPower.Remove(_power.PowerId);
+                        Setter(0);
+                    }
+                    else
+                    {
+                        Unlock();
+                        _getPlayer().Data.powersProSaveData.dataByPower[_power.PowerId].unlockedTier.Value = tier;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    public override string GetId()
+    {
+        return _power.name;
+    }
+}
