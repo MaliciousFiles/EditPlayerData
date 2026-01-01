@@ -1,4 +1,4 @@
-<h1 align="center">There is now a <a href="https://discord.gg/9U9DgdEd">Discord</a>!</h1>
+<h1 align="center">There is now a <a href="https://discord.gg/qp6jtKCSZp">Discord</a>!</h1>
 
 <h1 align="center">EditPlayerData</h1>
 
