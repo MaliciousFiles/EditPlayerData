@@ -2,17 +2,21 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using EditPlayerData.Utils;
 using HarmonyLib;
+using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.MapSets;
 using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Powers;
 using Il2CppAssets.Scripts.Models.Profile;
+using Il2CppAssets.Scripts.Models.Store;
+using Il2CppAssets.Scripts.Models.Towers.Upgrades;
 using Il2CppAssets.Scripts.Models.TowerSets;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Player;
@@ -225,8 +229,7 @@ public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
             if (!_isShown) return;
             _isShown = false;
 
-
-            PopupScreen.instance.GetTMP_InputField().characterLimit = 9;
+            PopupScreen.instance.gameObject.GetComponentInChildren<NK_TextMeshProInputField>().characterLimit = 9;
         }
     }
 }
@@ -314,7 +317,7 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
         () => Game.Player.Data.purchase.HasMadeOneTimePurchase(id),
         t =>
         {
-            if (t) Game.Player.Data.purchase.AddOneTimePurchaseItem(id);
+            if (t) Game.Player.Data.purchase.AddOneTimePurchaseItem(id, LootFrom.iap);
             else Game.Player.Data.purchase.RemoveOneTimePurchaseItem(id);
         })
     {
@@ -860,7 +863,7 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
             .Concat(model.GetTower(_tower.towerId, pathThreeTier: 5).appliedUpgrades);
             // .Append(_tower.towerId+" Paragon");
 
-        var paragon = model.GetParagonUpgradeForTowerId(_tower.towerId);
+        var paragon = model.GetParagonUpgrade(_tower.towerId);
         return paragon != null ? upgrades.Append(paragon.name) : upgrades;
     }
 

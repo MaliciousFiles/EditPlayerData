@@ -1,6 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
@@ -14,10 +17,13 @@ using Il2CppAssets.Scripts.Unity.UI_New.Settings;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppTMPro;
 using MelonLoader;
+using MelonLoader.Utils;
+using Semver;
 using UnityEngine;
 
 [assembly: MelonInfo(typeof(EditPlayerData.EditPlayerData), ModHelperData.Name, ModHelperData.Version, ModHelperData.RepoOwner)]
 [assembly: MelonGame("Ninja Kiwi", "BloonsTD6")]
+[assembly: MelonGame("Ninja Kiwi", "BloonsTD6-Epic")]
 namespace EditPlayerData;
 
 public class EditPlayerData : BloonsTD6Mod
@@ -25,8 +31,9 @@ public class EditPlayerData : BloonsTD6Mod
 
     public override void OnApplicationStart()
     {
+        File.Delete(Path.Join(MelonEnvironment.GameRootDirectory, "Btd6ModHelper", "Data", $"{ModHelperData.Name}.json"));
         Directory.CreateDirectory("EditPlayerData");
-        ModHelper.Msg<EditPlayerData>("EditPlayerData loaded!");
+        ModHelper.Log<EditPlayerData>("EditPlayerData loaded!");
     }
 
     public override void OnProfileLoaded(ProfileModel result)
@@ -143,6 +150,8 @@ public class EditPlayerData : BloonsTD6Mod
                                 {
                                     screen.ShowOkPopup(
                                         "An error occured while saving. Check the MelonLoader console for messages.");
+                                    file?.Close();
+                                    File.Delete(Path.Join("EditPlayerData", title + ".json"));
                                     throw;
                                 }
                                 finally
