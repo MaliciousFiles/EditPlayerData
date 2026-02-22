@@ -58,10 +58,15 @@ jobs:
         uses: actions/checkout@master
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: doombubbles/btd6-ci-dependencies
-          ref: main
-          path: ${{ env.BLOONSTD6 }}/MelonLoader/Il2CppAssemblies
+          repository: MaliciousFiles/EditPlayerData
+          ref: master
+          path: ./EPD
 
+      - name: Extract Dependencies
+        shell: bash
+        run: |
+          mkdir -p ${{ env.BLOONSTD6 }}/MelonLoader/Il2CppAssemblies
+          mv EPD/DLLs/*.dll ${{ env.BLOONSTD6 }}/MelonLoader/Il2CppAssemblies
 
       - name: Download Latest Mod Helper
         uses: robinraju/release-downloader@v1.4
