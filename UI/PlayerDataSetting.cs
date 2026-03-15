@@ -312,12 +312,20 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
 {
     private readonly string _id;
 
+    private static void AddOneTimePurchaseItem(string id)
+    {
+        var purchase = Game.Player.Data.purchase;
+        var method = purchase.GetType().GetMethod("AddOneTimePurchaseItem");
+        method.Invoke(purchase,
+            method.GetParameters().Length == 1 ? new object[] { id } : new object[] { id, LootFrom.iap });
+    }
+    
     public PurchasePlayerDataSetting(string name, string icon, string id) : base(
         name, icon, false,
         () => Game.Player.Data.purchase.HasMadeOneTimePurchase(id),
         t =>
         {
-            if (t) Game.Player.Data.purchase.AddOneTimePurchaseItem(id, LootFrom.iap);
+            if (t) AddOneTimePurchaseItem(id);
             else Game.Player.Data.purchase.RemoveOneTimePurchaseItem(id);
         })
     {

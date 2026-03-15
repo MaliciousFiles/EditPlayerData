@@ -33,7 +33,7 @@ public class EditPlayerData : BloonsTD6Mod
     {
         File.Delete(Path.Join(MelonEnvironment.GameRootDirectory, "Btd6ModHelper", "Data", $"{ModHelperData.Name}.json"));
         Directory.CreateDirectory("EditPlayerData");
-        ModHelper.Log<EditPlayerData>("EditPlayerData loaded!");
+        ModHelper.Log<EditPlayerData>($"EditPlayerData v{ModHelperData.Version} loaded!");
     }
 
     public override void OnProfileLoaded(ProfileModel result)
