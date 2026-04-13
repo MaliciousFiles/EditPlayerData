@@ -24,6 +24,7 @@ using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
 using Il2CppNinjaKiwi.Common;
+using Il2CppNinjaKiwi.Localization;
 using Il2CppTMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -311,21 +312,21 @@ public override ModHelperImage GetIcon()
 public class PurchasePlayerDataSetting : BoolPlayerDataSetting
 {
     private readonly string _id;
-
-    private static void AddOneTimePurchaseItem(string id)
+    
+    private static void AddOneTimePurchaseItem(string id, LootFrom from)
     {
         var purchase = Game.Player.Data.purchase;
         var method = purchase.GetType().GetMethod("AddOneTimePurchaseItem");
         method.Invoke(purchase,
-            method.GetParameters().Length == 1 ? new object[] { id } : new object[] { id, LootFrom.iap });
+            method.GetParameters().Length == 1 ? new object[] { id } : new object[] { id, from });
     }
     
-    public PurchasePlayerDataSetting(string name, string icon, string id) : base(
+    public PurchasePlayerDataSetting(string name, string icon, string id, LootFrom from) : base(
         name, icon, false,
         () => Game.Player.Data.purchase.HasMadeOneTimePurchase(id),
         t =>
         {
-            if (t) AddOneTimePurchaseItem(id);
+            if (t) AddOneTimePurchaseItem(id, from);
             else Game.Player.Data.purchase.RemoveOneTimePurchaseItem(id);
         })
     {
@@ -963,6 +964,37 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
 public class MonkeyKnowledgePlayerDataSetting : NumberPlayerDataSetting
 {
     public MonkeyKnowledgePlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) : base(name, icon, def, getter, setter) { }
+    
+    protected override ModHelperComponent GetValue()
+    {
+        if (Game.instance.model.allKnowledge.All(knowledge =>
+                Game.Player.Data.acquiredKnowledge.Contains(knowledge.name))) return base.GetValue();
+        
+        var panel = ModHelperPanel.Create(new Info("Value", InfoPreset.FillParent),
+            null, RectTransform.Axis.Horizontal, 25);
+        panel.LayoutGroup.childAlignment = TextAnchor.MiddleRight;
+
+        panel.AddPanel(new Info("Spacing") { Flex = 2 });
+        
+        panel.AddPanel(new Info("Button") { Flex = 1 })
+            .AddButton(new Info("AddAll", 290, 140), VanillaSprites.GreenBtnLong, 
+                new Action(() =>
+                {
+                    foreach (var knowledge in Game.instance.model.allKnowledge)
+                    {
+                        Game.Player.Data.acquiredKnowledge.Add(knowledge.name);
+                    }
+
+                    ReloadVisuals?.Invoke();
+                }))
+            .AddText(new Info("Text", 300, 100), "Unlock All", 45);
+        
+        panel.AddText(new Info("ValueText") { Flex = 1 },
+            Getter()+"", 70)
+            .Text.alignment = TextAlignmentOptions.Right;
+        
+        return panel;
+    }
     
     protected override void SerializeSelf(Utf8JsonWriter writer)
     {

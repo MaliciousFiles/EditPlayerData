@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
@@ -13,8 +14,10 @@ using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.Boss;
 using Il2CppAssets.Scripts.Data.Legends;
+using Il2CppAssets.Scripts.Models;
 using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Profile;
+using Il2CppAssets.Scripts.Models.Store;
 using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.Menu;
@@ -24,6 +27,8 @@ using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
+using Il2CppNinjaKiwi.Common;
+using Il2CppNinjaKiwi.Localization;
 using Il2CppSystem.Linq;
 using Il2CppTMPro;
 using UnityEngine;
@@ -41,14 +46,14 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         {
             "General", new List<PlayerDataSetting>
             {
-                new PurchasePlayerDataSetting("Unlocked Double Cash", VanillaSprites.DoubleCashModeShop, "btd6_doublecashmode"),
+                new PurchasePlayerDataSetting("Unlocked Double Cash", VanillaSprites.DoubleCashModeShop, "btd6_doublecashmode", LootFrom.iap),
                 new PurchasePlayerDataSetting("Unlocked Fast Track", VanillaSprites.FastTrackModeIcon,
                     "btd6_fasttrackpack",
                     () => GetPlayer().Data.unlockedFastTrack,
                     t => GetPlayer().Data.unlockedFastTrack = t),
-                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendRogueShop, "btd6_legendsrogue"),
-                new PurchasePlayerDataSetting("Unlocked Frontier Legends", VanillaSprites.LegendFrontierShop, "btd6_legendsfrontier"),
-                new PurchasePlayerDataSetting("Unlocked Map Editor", VanillaSprites.MapEditorBtn, "btd6_mapeditorsupporter_new"),
+                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendRogueShop, "btd6_legendsrogue", LootFrom.legendFeat),
+                new PurchasePlayerDataSetting("Unlocked Frontier Legends", VanillaSprites.LegendFrontierShop, "btd6_legendsfrontier", LootFrom.legendFeat),
+                new PurchasePlayerDataSetting("Unlocked Map Editor", VanillaSprites.MapEditorBtn, "btd6_mapeditorsupporter_new", LootFrom.iap),
                 new NumberPlayerDataSetting("Monkey Money", VanillaSprites.MonkeyMoneyShop, 0,
                     () => GetPlayer().Data.monkeyMoney.ValueInt, t => GetPlayer().Data.monkeyMoney.Value = t),
                 new MonkeyKnowledgePlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,
@@ -165,6 +170,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Trophy Store", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values             
         },
         {
+            "Skins", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
             "Maps", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
@@ -255,6 +263,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     public static void InitSettings(ProfileModel data)
     {
         Settings["Trophy Store"].Clear();
+        Settings["Skins"].Clear();
         Settings["Maps"].Clear();
         Settings["Maps - Coop"].Clear();
         Settings["Towers"].Clear();
@@ -273,6 +282,26 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 () => !data.trophyStorePurchasedItems.ContainsKey(item.Id),
                 () => Game.Player.AddTrophyStoreItem(item.id)));
         }
+        
+        foreach (var skin in GameData.Instance.skinsData.SkinList.items)
+        {
+            if (skin.isDefaultTowerSkin) continue;
+            
+            Settings["Skins"].Add(new BoolPlayerDataSetting(
+                LocalizationManager.Instance.Format(skin.skinName),
+                skin.icon.AssetGUID, false,
+                () => GetPlayer().Data.unlockedTowerSkins.Contains(skin.name),
+                val =>
+                {
+                    if (val) GetPlayer().Data.unlockedTowerSkins.Add(skin.name);
+                    else GetPlayer().Data.unlockedTowerSkins.Remove(skin.name);
+                }));
+        }
+        
+        // foreach (var s in GameData.Instance.skinsData.SkinList.items)
+        // {
+            // ModHelper.Log<EditPlayerData>($"{s.}"); 
+        // }
         
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
