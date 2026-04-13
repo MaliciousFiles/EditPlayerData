@@ -297,7 +297,15 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     else GetPlayer().Data.unlockedTowerSkins.Remove(skin.name);
                 }));
         }
-        
+        foreach (var Hero in Game.Player.Data.unlockedHeroes)
+        {
+            Settings["Skins"].Add(new BoolPlayerDataSetting(LocalizationManager.Instance.Format(Hero), Hero.icon.AssetGUID, false, () => GetPlayer().Data.unlockedHeroes.Contains(Hero),
+                val =>
+                {
+                    if (val) GetPlayer().Data.unlockedHeroes.Add(Hero);
+                    else GetPlayer().Data.unlockedHeroes.Remove(Hero);
+                }));
+        }
         // foreach (var s in GameData.Instance.skinsData.SkinList.items)
         // {
             // ModHelper.Log<EditPlayerData>($"{s.}"); 
