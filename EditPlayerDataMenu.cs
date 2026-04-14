@@ -306,6 +306,23 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 () => GetPlayer().Data.unlockedTowerSkins.Contains(skin.name),
                 val =>
                 {
+                  if (skin.name == "ObynSkeletor" && val == true)
+                    {
+                        data.purchase?.AddOneTimePurchaseItem("btd6_skeletorpremiumpack", LootFrom.iap);
+                    }
+                    else if (skin.name == "ObynSkeletor" && val == false)
+                    {
+                        data.purchase?.RemoveOneTimePurchaseItem("btd6_skeletorpremiumpack");
+                    }
+                    if (skin.name == "AdoraSheRa" && val == true)
+                    {
+                        data.purchase?.AddOneTimePurchaseItem("btd6_sherapremiumpack", LootFrom.iap);
+                    }
+                    else if (skin.name == "AdoraSheRa" && val == false)
+                    {
+                        data.purchase?.RemoveOneTimePurchaseItem("btd6_sherapremiumpack");
+                    }
+
                     if (val) GetPlayer().Data.unlockedTowerSkins.Add(skin.name);
                     else GetPlayer().Data.unlockedTowerSkins.Remove(skin.name);
                 }));
