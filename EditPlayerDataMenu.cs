@@ -173,6 +173,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Skins", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
+            "Heroes", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
             "Maps", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
@@ -264,6 +267,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     {
         Settings["Trophy Store"].Clear();
         Settings["Skins"].Clear();
+        Settings["Heroes"].Clear();
         Settings["Maps"].Clear();
         Settings["Maps - Coop"].Clear();
         Settings["Towers"].Clear();
@@ -283,25 +287,46 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 () => Game.Player.AddTrophyStoreItem(item.id)));
         }
         
-        foreach (var skin in GameData.Instance.skinsData.SkinList.items)
+       foreach (var skin in GameData.Instance.skinsData.SkinList.items)
         {
-            if (skin.isDefaultTowerSkin) continue;
-            
+            if (skin.isDefaultTowerSkin)
+            {
+                Settings["Heroes"].Add(new BoolPlayerDataSetting(LocalizationManager.Instance.Format(skin.skinName), skin.icon.AssetGUID, false, () => Game.Player.Data.unlockedHeroes.Contains(skin.name),
+                    val =>
+                    {
+                        if (val) Game.Player.Data.unlockedHeroes.Add(skin.name);
+                        else Game.Player.Data.unlockedHeroes.Remove(skin.name);
+                    }));
+                continue;
+            }
+
             Settings["Skins"].Add(new BoolPlayerDataSetting(
                 LocalizationManager.Instance.Format(skin.skinName),
                 skin.icon.AssetGUID, false,
                 () => GetPlayer().Data.unlockedTowerSkins.Contains(skin.name),
                 val =>
                 {
+                  if (skin.name == "ObynSkeletor" && val == true)
+                    {
+                        data.purchase?.AddOneTimePurchaseItem("btd6_skeletorpremiumpack", LootFrom.iap);
+                    }
+                    else if (skin.name == "ObynSkeletor" && val == false)
+                    {
+                        data.purchase?.RemoveOneTimePurchaseItem("btd6_skeletorpremiumpack");
+                    }
+                    if (skin.name == "AdoraSheRa" && val == true)
+                    {
+                        data.purchase?.AddOneTimePurchaseItem("btd6_sherapremiumpack", LootFrom.iap);
+                    }
+                    else if (skin.name == "AdoraSheRa" && val == false)
+                    {
+                        data.purchase?.RemoveOneTimePurchaseItem("btd6_sherapremiumpack");
+                    }
+
                     if (val) GetPlayer().Data.unlockedTowerSkins.Add(skin.name);
                     else GetPlayer().Data.unlockedTowerSkins.Remove(skin.name);
                 }));
         }
-        
-        // foreach (var s in GameData.Instance.skinsData.SkinList.items)
-        // {
-            // ModHelper.Log<EditPlayerData>($"{s.}"); 
-        // }
         
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
