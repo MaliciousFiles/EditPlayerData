@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
@@ -11,10 +12,18 @@ using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
 using EditPlayerData;
 using HarmonyLib;
+using Il2CppAssets.Scripts.Data;
+using Il2CppAssets.Scripts.Data.Knowledge;
+using Il2CppAssets.Scripts.Data.Legends;
+using Il2CppAssets.Scripts.Data.SocialSeasons;
+using Il2CppAssets.Scripts.Models;
+using Il2CppAssets.Scripts.Models.Map;
 using Il2CppAssets.Scripts.Models.Profile;
+using Il2CppAssets.Scripts.Models.Rounds;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Unity.UI_New.Settings;
 using Il2CppAssets.Scripts.Utils;
+using Il2CppSystem.Collections.Generic;
 using Il2CppTMPro;
 using MelonLoader;
 using MelonLoader.Utils;
@@ -28,7 +37,43 @@ namespace EditPlayerData;
 
 public class EditPlayerData : BloonsTD6Mod
 {
+    [HarmonyPatch(typeof(GameModel))]
+    [HarmonyPatch(nameof(GameModel.CreateModded))]
+    [HarmonyPatch(new Type[] {
+    typeof(List<string>),
+    typeof(ModModel),
+    typeof(ActiveRelicKnowledge),
+    typeof(MapModel),
+    typeof(RoundSetModel),
+    typeof(List<ArtifactLoot>),
+    typeof(HashSet<SeasonPerkItem>)
+})]
+    public static class ApplyForcedPerkPatch
+    {
+        static void Prefix(
+            List<string> activeMods,
+            ModModel dcmModModel,
+            ActiveRelicKnowledge activeRelicKnowledge,
+            MapModel map,
+            RoundSetModel roundSet,
+            List<ArtifactLoot> artifactsInventory,
+            ref HashSet<SeasonPerkItem> activePerks)
+        {
+            // Build your own perk list
+            var perkDefs = GameData.Instance.perkData.perkDatas;
 
+            var forced = new HashSet<SeasonPerkItem>();
+
+            foreach (var key in EditPlayerDataMenu.ForcedPerks)
+            {
+                if (perkDefs.TryGetValue(key, out var perk))
+                    forced.Add(perk);
+            }
+
+            // Replace the game's perk list
+            activePerks = forced;
+        }
+    }
     public override void OnApplicationStart()
     {
         File.Delete(Path.Join(MelonEnvironment.GameRootDirectory, "Btd6ModHelper", "Data", $"{ModHelperData.Name}.json"));
@@ -54,8 +99,8 @@ public class EditPlayerData : BloonsTD6Mod
                 null, RectTransform.Axis.Vertical, 10);
             button.LayoutGroup.childAlignment = TextAnchor.UpperCenter;
             button.AddPanel(new Info("Spacing", 200));
-            
-            var buttons = button.AddPanel(new Info("Buttons", 1700, 285), null, RectTransform.Axis.Horizontal, 100+(500-285));
+
+            var buttons = button.AddPanel(new Info("Buttons", 1700, 285), null, RectTransform.Axis.Horizontal, 100 + (500 - 285));
             buttons.LayoutGroup.childAlignment = TextAnchor.UpperCenter;
 
             buttons.AddButton(new Info("Import", 285), VanillaSprites.EditBtn,
@@ -74,15 +119,15 @@ public class EditPlayerData : BloonsTD6Mod
                             var okPopup = screen.ShowOkPopup(
                                 "No savefiles found. Additional files can be added to:").WaitForCompletion().FindObject("Layout");
 
-                            var okText = okPopup.AddModHelperComponent(ModHelperText.Create(new Info("Text",2000, 50),
+                            var okText = okPopup.AddModHelperComponent(ModHelperText.Create(new Info("Text", 2000, 50),
                                 Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData"), 40));
                             okText.transform.MoveAfterSibling(okPopup.FindObject("Body").transform, true);
-                            
+
                             var okSpacing = okPopup.AddModHelperPanel(new Info("Spacing", 130));
                             okSpacing.transform.MoveAfterSibling(okText, true);
                             return;
                         }
-                        
+
                         ModHelperDropdown? dropdown = null;
                         var popup = screen.ShowPopup(PopupScreen.Placement.inGameCenter, "Import Settings",
                             "Select the savefile to load.",
@@ -101,23 +146,23 @@ public class EditPlayerData : BloonsTD6Mod
                                 }
                             }), "Import", null, "Cancel",
                             Popup.TransitionAnim.Scale, PopupScreen.BackGround.Grey).WaitForCompletion().FindObject("Layout");
-                        
-                        var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("Text",2000, 50),
+
+                        var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("Text", 2000, 50),
                             Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData"), 40));
                         text.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
-                        
+
                         var spacing = popup.AddModHelperPanel(new Info("Spacing", 60));
                         spacing.transform.MoveAfterSibling(text, true);
-                        
+
                         dropdown = popup.AddModHelperComponent(ModHelperDropdown.Create(new Info("FileDropdown", 790, 125),
                             files, 550, new Action<int>(_ => { }),
                             VanillaSprites.BlueInsertPanelRound, 60f));
                         dropdown.transform.MoveAfterSibling(spacing, true);
-                        
+
                         spacing = popup.AddModHelperPanel(new Info("Spacing", 130));
                         spacing.transform.MoveAfterSibling(dropdown, true);
                     });
-                })); 
+                }));
             buttons.AddButton(new Info("Settings", 285), VanillaSprites.SettingsBtn,
                 new Action(() => { ModGameMenu.Open<EditPlayerDataMenu>(); }));
             buttons.AddButton(new Info("Export", 285), VanillaSprites.ExitGameBtn,
@@ -131,18 +176,18 @@ public class EditPlayerData : BloonsTD6Mod
                             {
                                 var title = input!.CurrentValue;
 
-                                
+
                                 FileStream? file = null;
                                 try
                                 {
                                     file = File.Open(Path.Join("EditPlayerData", title + ".json"), FileMode.Create);
                                     EditPlayerDataMenu.SerializeAllSettings(file);
                                     var popup = screen.ShowOkPopup("Settings successfully saved:").WaitForCompletion().FindObject("Layout");
-                                    
-                                    var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("Text",2000, 50),
-                                        Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData", title+".json"), 40));
+
+                                    var text = popup.AddModHelperComponent(ModHelperText.Create(new Info("Text", 2000, 50),
+                                        Path.Join(Directory.GetCurrentDirectory(), "EditPlayerData", title + ".json"), 40));
                                     text.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
-                                    
+
                                     var spacing = popup.AddModHelperPanel(new Info("Spacing", 130));
                                     spacing.transform.MoveAfterSibling(text, true);
                                 }
@@ -164,13 +209,13 @@ public class EditPlayerData : BloonsTD6Mod
                         input = popup.AddModHelperComponent(ModHelperInputField.Create(new Info("Input", 790, 125),
                             "playerdata", VanillaSprites.BlueInsertPanelRound, fontSize: 60));
                         input.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
-                        
+
                         var spacing = popup.AddModHelperPanel(new Info("Spacing", 130));
                         spacing.transform.MoveAfterSibling(input, true);
 
                     });
                 }));
-            
+
             var texts = button.AddPanel(new Info("Texts", 2000, 100), null, RectTransform.Axis.Horizontal, 100);
             texts.LayoutGroup.childAlignment = TextAnchor.UpperCenter;
             texts.AddText(new Info("Text", 500, 100), "Import", 80).Text.alignment = TextAlignmentOptions.Center;
