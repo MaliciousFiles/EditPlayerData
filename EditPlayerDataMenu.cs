@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
@@ -14,27 +15,34 @@ using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.Boss;
 using Il2CppAssets.Scripts.Data.Legends;
+using Il2CppAssets.Scripts.Data.SocialSeasons;
 using Il2CppAssets.Scripts.Models;
 using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.Store;
 using Il2CppAssets.Scripts.Models.Store.Loot;
 using Il2CppAssets.Scripts.Unity;
+using Il2CppAssets.Scripts.Unity.Map;
 using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Achievements;
+using Il2CppAssets.Scripts.Unity.UI_New.Callouts;
 using Il2CppAssets.Scripts.Unity.UI_New.ChallengeEditor;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
+using Il2CppNewtonsoft.Json;
 using Il2CppNinjaKiwi.Common;
+using Il2CppNinjaKiwi.Common.ResourceUtils;
 using Il2CppNinjaKiwi.Localization;
 using Il2CppSystem.Linq;
 using Il2CppTMPro;
 using MelonLoader;
+using MelonLoader.Utils;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.UI;
+using UnityEngine.UIElements.UIR;
 using static Il2CppAssets.Scripts.Models.Profile.ProfileModel;
 using Action = System.Action;
 using Enum = System.Enum;
@@ -44,7 +52,8 @@ namespace EditPlayerData;
 
 public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 {
-    public static HashSet<string> ForcedPerks = new HashSet<string>();
+    // public static HashSet<string> ForcedPerks = new HashSet<string>();
+
     private static readonly Dictionary<string, List<PlayerDataSetting>> Settings = new()
     {
         {
@@ -203,8 +212,14 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         {
             "Online Modes", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
+       // {
+         //   "Perks", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        //},
         {
-            "Perks", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+            "Stats", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
+            "Top Towers", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         }
     };
 
@@ -281,7 +296,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         Settings["Powers"].Clear();
         Settings["Instas"].Clear();
         Settings["Banners"].Clear();
-        Settings["Perks"].Clear();
+        //   Settings["Perks"].Clear();
+        Settings["Stats"].Clear();
+        Settings["Top Towers"].Clear();
 
 
         foreach (var item in GameData.Instance.trophyStoreItems.GetAllItems())
@@ -351,43 +368,46 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     else GetPlayer().Data.unlockedTowerSkins.Remove(skin.name);
                 }));
         }
-        var perks = GameData.Instance.perkData.perkDatas;
-        foreach (var perk in perks)
-        {
-            Settings["Perks"].Add(new BoolPlayerDataSetting(
-                LocalizationManager.Instance.Format(perk.key),
-                perk.value.model.icon.AssetGUID, false,
-                () =>
-{
-    var profile = Game.instance.GetPlayerProfile();
-    var perkData = profile.profilePerkData;
+        /*    var perks = GameData.Instance.perkData.perkDatas;
 
-    if (perkData == null || perkData.unlockedPerks == null)
-        return false;
 
-    return EditPlayerDataMenu.ForcedPerks.Contains(perk.key);
-},
-val =>
-{
-    var profile = Game.instance.GetPlayerProfile();
-    var perkData = profile.profilePerkData;
-
-    // Create perk data if missing (flagged players need this)
-    if (perkData == null)
+            foreach (var perk in perks)
+            {
+                Settings["Perks"].Add(new BoolPlayerDataSetting(
+                    LocalizationManager.Instance.Format(perk.Key),
+                    perk.Value.model.icon.AssetGUID, false,
+                    () =>
     {
-        profile.profilePerkData = new ProfilePerkData();
-        perkData = profile.profilePerkData;
-        perkData.unlockedPerks = new Il2CppSystem.Collections.Generic.HashSet<string>();
-        perkData.activePerks = new Il2CppSystem.Collections.Generic.HashSet<string>();
-        perkData.eventId = ""; // safe default
-    }
-    if (val)
-        EditPlayerDataMenu.ForcedPerks.Add(perk.key);
-    else
-        EditPlayerDataMenu.ForcedPerks.Remove(perk.key);
-}));
+        var profile = Game.instance.GetPlayerProfile();
+        var perkData = profile.profilePerkData;
 
+        if (perkData == null || perkData.unlockedPerks == null)
+            return false;
+
+        return EditPlayerDataMenu.ForcedPerks.Contains(perk.Key);
+    },
+    val =>
+    {
+        var profile = Game.instance.GetPlayerProfile();
+        var perkData = profile.profilePerkData;
+
+        // Create perk data if missing (flagged players need this)
+        if (perkData == null)
+        {
+            profile.profilePerkData = new ProfilePerkData();
+            perkData = profile.profilePerkData;
+            perkData.unlockedPerks = new Il2CppSystem.Collections.Generic.HashSet<string>();
+            perkData.activePerks = new Il2CppSystem.Collections.Generic.HashSet<string>();
+            perkData.eventId = ""; // safe default
         }
+        if (val)
+            EditPlayerDataMenu.ForcedPerks.Add(perk.Key);
+        else
+            EditPlayerDataMenu.ForcedPerks.Remove(perk.Key);
+    }));
+
+            }*/
+
 
         foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
         {
@@ -463,6 +483,52 @@ val =>
                 }));
 
             Settings["Instas"].Add(new InstaMonkeyPlayerDataSetting(tower, GetPlayer));
+        }
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Games Played"), VanillaSprites.ConfettiPopIcon, 0, () => data.analyticsKonFuze.basicStats.gamesPlayed.ValueInt, val => data.analyticsKonFuze.basicStats.gamesPlayed.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Bads Popped"), VanillaSprites.BadBloonIcon, 0, () => data.analyticsKonFuze.basicStats.badsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.badsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Zomgs Popped"), VanillaSprites.ZomgIcon, 0, () => data.analyticsKonFuze.basicStats.zomgsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.zomgsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Ddts Popped"), VanillaSprites.DDTIcon, 0, () => data.analyticsKonFuze.basicStats.ddtsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.ddtsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Bfbs Popped"), VanillaSprites.BfbIcon, 0, () => data.analyticsKonFuze.basicStats.bfbsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.bfbsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Moabs Popped"), VanillaSprites.MoabBloonIcon, 0, () => data.analyticsKonFuze.basicStats.moabsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.moabsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Bloons Popped"), VanillaSprites.PopIcon, 0, () => data.analyticsKonFuze.basicStats.bloonsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.bloonsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Leads Popped"), VanillaSprites.LeadBloonIcon, 0, () => data.analyticsKonFuze.basicStats.leadPopped.ValueInt, val => data.analyticsKonFuze.basicStats.leadPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Purples Popped"), VanillaSprites.PurpleBloonIcon, 0, () => data.analyticsKonFuze.basicStats.purplesPopped.ValueInt, val => data.analyticsKonFuze.basicStats.purplesPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Camos Popped"), VanillaSprites.CamoBloonIcon, 0, () => data.analyticsKonFuze.basicStats.camosPopped.ValueInt, val => data.analyticsKonFuze.basicStats.camosPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Ceramics Popped"), VanillaSprites.CeramicBloonIcon, 0, () => data.analyticsKonFuze.basicStats.ceramicsPopped.ValueInt, val => data.analyticsKonFuze.basicStats.ceramicsPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Regrows Popped"), VanillaSprites.RegrowBloonIcon, 0, () => data.analyticsKonFuze.basicStats.regrowPopped.ValueInt, val => data.analyticsKonFuze.basicStats.regrowPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Bloons Leaked"), VanillaSprites.LivesIcon, 0, () => data.analyticsKonFuze.basicStats.bloonsLeaked.ValueInt, val => data.analyticsKonFuze.basicStats.bloonsLeaked.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Bosses Popped"), VanillaSprites.BloonariusIcon, 0, () => data.analyticsKonFuze.basicStats.bossesPopped.ValueInt, val => data.analyticsKonFuze.basicStats.bossesPopped.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Damage done to bosses"), VanillaSprites.DiamondbackBadge, 0, () => data.analyticsKonFuze.basicStats.damageDoneToBosses.ValueInt, val => data.analyticsKonFuze.basicStats.damageDoneToBosses.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Cash Generated"), VanillaSprites.MoreCashIcon, 0, () => data.analyticsKonFuze.basicStats.cashEarned.ValueInt, val => data.analyticsKonFuze.basicStats.cashEarned.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Monkeys Placed"), VanillaSprites.DartMonkeyIcon, 0, () => data.analyticsKonFuze.basicStats.totalTowersPlaced.ValueInt, val => data.analyticsKonFuze.basicStats.totalTowersPlaced.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Abilities Used"), VanillaSprites.ActivatedAbilityIcon, 0, () => data.analyticsKonFuze.basicStats.totalAbilitiesActivated.ValueInt, val => data.analyticsKonFuze.basicStats.totalAbilitiesActivated.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Powers Used"), VanillaSprites.PowersIcon, 0, () => data.analyticsKonFuze.basicStats.totalPowersActivated.ValueInt, val => data.analyticsKonFuze.basicStats.totalPowersActivated.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Insta Monkeys Used"), VanillaSprites.InstaMonkeyIcon, 0, () => data.analyticsKonFuze.basicStats.instaMonkeysUsed.ValueInt, val => data.analyticsKonFuze.basicStats.instaMonkeysUsed.Value = val));
+        Settings["Stats"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format("Necro Bloons Reanimated"), VanillaSprites.UnpoppedArmy, 0, () => data.analyticsKonFuze.necroBloonsReanimated.ValueInt, val => data.analyticsKonFuze.necroBloonsReanimated.Value = val));
+        string d = "";
+        foreach (var tower in data.analyticsKonFuze.basicStats.towersPlacedByBaseName)
+        {
+
+            if (tower.key.Contains("-"))
+            {
+                continue;
+            }
+
+            var a = Game.instance.model.GetTowerFromId(tower.key);
+            d = a.portrait.AssetGUID;
+
+
+
+
+
+            Settings["Top Towers"].Add(new NumberPlayerDataSetting(LocalizationManager.Instance.Format(tower.Key), d, 0, () => tower.value.ValueInt, val =>
+            {
+                tower.value.Value = val;
+                if (data.analyticsKonFuze.basicStats.heroesPlacedByName.ContainsKey(tower.Key))
+                {
+                    data.analyticsKonFuze.basicStats.heroesPlacedByName[tower.key].Value = val;
+                }
+            }));
         }
 
         foreach (var banner in GameData.Instance.profileBanners.profileBanners)

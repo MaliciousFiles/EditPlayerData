@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using BTD_Mod_Helper;
+using BTD_Mod_Helper.UI.Menus;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
@@ -17,12 +18,20 @@ using Il2CppAssets.Scripts.Data.Knowledge;
 using Il2CppAssets.Scripts.Data.Legends;
 using Il2CppAssets.Scripts.Data.SocialSeasons;
 using Il2CppAssets.Scripts.Models;
+using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Map;
 using Il2CppAssets.Scripts.Models.Profile;
 using Il2CppAssets.Scripts.Models.Rounds;
+using Il2CppAssets.Scripts.Simulation.Artifacts;
+using Il2CppAssets.Scripts.Unity;
+using Il2CppAssets.Scripts.Unity.Analytics;
+using Il2CppAssets.Scripts.Unity.Player;
+using Il2CppAssets.Scripts.Unity.UI_New.InGame;
+using Il2CppAssets.Scripts.Unity.UI_New.PlayerStats;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Unity.UI_New.Settings;
 using Il2CppAssets.Scripts.Utils;
+using Il2CppInterop.Runtime;
 using Il2CppSystem.Collections.Generic;
 using Il2CppTMPro;
 using MelonLoader;
@@ -35,8 +44,12 @@ using UnityEngine;
 [assembly: MelonGame("Ninja Kiwi", "BloonsTD6-Epic")]
 namespace EditPlayerData;
 
+
+
 public class EditPlayerData : BloonsTD6Mod
 {
+   /* public static List<string> artifacts = new();
+
     [HarmonyPatch(typeof(GameModel))]
     [HarmonyPatch(nameof(GameModel.CreateModded))]
     [HarmonyPatch(new Type[] {
@@ -73,13 +86,46 @@ public class EditPlayerData : BloonsTD6Mod
             // Replace the game's perk list
             activePerks = forced;
         }
-    }
+    }*/
     public override void OnApplicationStart()
     {
         File.Delete(Path.Join(MelonEnvironment.GameRootDirectory, "Btd6ModHelper", "Data", $"{ModHelperData.Name}.json"));
         Directory.CreateDirectory("EditPlayerData");
         ModHelper.Log<EditPlayerData>($"EditPlayerData v{ModHelperData.Version} loaded!");
     }
+   /* [HarmonyPatch(typeof(ArtifactManager), nameof(ArtifactManager.Initialise))]
+    public static class patch
+    {
+        static void postfix(ArtifactManager __instance)
+        {
+            foreach (var art in artifacts)
+            {
+                __instance.Activate(art);
+            }
+        }
+    }*/
+   // public override void OnUpdate()
+   // {
+       /* if (Input.GetKey(KeyCode.A))
+        {
+            var sim = InGame.instance.bridge.Simulation;
+            var am = sim.artifactManager;
+
+
+            foreach (var artifact in GameData.Instance.artifactsData.artifactModelsByType[Il2CppType.Of<ItemArtifactModel>()])
+            {
+                MelonLogger.Msg(artifact.ArtifactName);
+            }
+            foreach (var art in artifacts)
+            {
+                am.Activate(art);
+            }
+            foreach (var item in am.activeArtifacts)
+            {
+                MelonLogger.Msg(item.artifactBaseModel.ArtifactName);
+            }
+        }*/
+   // }
 
     public override void OnProfileLoaded(ProfileModel result)
     {
