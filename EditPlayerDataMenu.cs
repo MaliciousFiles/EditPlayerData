@@ -556,6 +556,14 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         {
             Settings["Artifacts"].Add(new ArtifactPlayerDataSetting(artifact));
         }
+        foreach (var artifact in GameData.Instance.artifactsData.artifactModelsByType[Il2CppType.Of<BoostArtifactModel>()])
+        {
+            Settings["Artifacts"].Add(new ArtifactPlayerDataSetting(artifact));
+        }
+        foreach (var artifact in GameData.Instance.artifactsData.artifactModelsByType[Il2CppType.Of<MapArtifactModel>()])
+        {
+            Settings["Artifacts"].Add(new ArtifactPlayerDataSetting(artifact));
+        }
 
         foreach (var boss in Enum.GetValues<BossType>())
         {
