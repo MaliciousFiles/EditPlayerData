@@ -832,6 +832,30 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                             });
                             break;
                         }
+                    case "Skins":
+                        {
+                            BoolPlayerDataSetting.ShowPopup(screen, false, n =>
+                            {
+                                foreach (var setting in Settings[_category].Select(s => s as BoolPlayerDataSetting))
+                                {
+                                    setting!.Setter(n);
+                                }
+                                UpdateVisibleEntries();
+                            });
+                            break;
+                        }
+                    case "Heroes":
+                        {
+                            BoolPlayerDataSetting.ShowPopup(screen, false, n =>
+                            {
+                                foreach (var setting in Settings[_category].Select(s => s as BoolPlayerDataSetting))
+                                {
+                                    setting!.Setter(n);
+                                }
+                                UpdateVisibleEntries();
+                            });
+                            break;
+                        }
                 }
             });
         })).AddText(new Info("SetAllText", 650, 200), "Set All", 60);
@@ -874,7 +898,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         if (_topArea == null) return;
         _topArea.GetDescendent<ModHelperButton>("UnlockAll")?.SetActive(anyUnlockable);
 
-        var canAddAll = _category is "Powers" or "Instas" or "Artifacts";
+        var canAddAll = _category is "Powers" or "Instas" or "Artifacts" or "Skins" or "Heroes";
         _topArea.GetDescendent<ModHelperButton>("SetAll")?.SetActive(!anyUnlockable && canAddAll);
 
         _topArea.GetDescendent<ModHelperPanel>("Special Button Filler")?.SetActive(!anyUnlockable && !canAddAll);
@@ -900,7 +924,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 entry.SetSetting(settings[idx]);
                 if (settings[idx].GetType() == typeof(ProfilePlayerDataSetting))
                 {
-                    settings[idx].ReloadVisuals = UpdateVisibleEntries; // needs to reload all visible
+                    settings[idx].ReloadVisuals = UpdateVisibleEntries;
                 }
                 entry.SetActive(true);
             }
