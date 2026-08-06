@@ -582,10 +582,9 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         RemoveChild("RefreshBtn");
         GameMenu.requiresInternetObj.SetActive(false);
 
-        GameMenu.firstPageBtn.SetOnClick(() => SetPage(0));
+        // BTD6 v56 removed BrowserBase's first/last page buttons, leaving only previous/next
         GameMenu.previousPageBtn.SetOnClick(() => SetPage(_pageIdx - 1));
         GameMenu.nextPageBtn.SetOnClick(() => SetPage(_pageIdx + 1));
-        GameMenu.lastPageBtn.SetOnClick(() => SetPage(LastPage));
 
         var verticalLayoutGroup = GameMenu.scrollRect.content.GetComponent<VerticalLayoutGroup>();
         verticalLayoutGroup.SetPadding(50);
@@ -751,8 +750,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         GameMenu.totalPages = LastPage + 1;
         GameMenu.SetCurrentPage(_pageIdx + 1);
 
-        GameMenu.firstPageBtn.interactable = GameMenu.previousPageBtn.interactable = _pageIdx > 0;
-        GameMenu.lastPageBtn.interactable = GameMenu.nextPageBtn.interactable = _pageIdx < LastPage;
+        GameMenu.previousPageBtn.interactable = _pageIdx > 0;
+        GameMenu.nextPageBtn.interactable = _pageIdx < LastPage;
 
         if (updateEntries)
         {
