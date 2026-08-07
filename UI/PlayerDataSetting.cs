@@ -961,6 +961,44 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
     }
 }
 
+public class PlacedPlayerDataSetting : NumberPlayerDataSetting
+{
+    private readonly TowerDetailsModel _tower;
+
+    public PlacedPlayerDataSetting(TowerDetailsModel tower, Func<Btd6Player> getPlayer, bool hero) : base(
+        LocalizationManager.Instance.Format(tower.towerId),
+        tower.GetTower().portrait.GetGUID(), 0,
+        () => Counts(getPlayer, hero)
+            .Max(counts => counts.TryGetValue(tower.towerId, out var count) ? count.ValueInt : 0),
+        t =>
+        {
+            foreach (var counts in Counts(getPlayer, hero))
+            {
+                if (counts.TryGetValue(tower.towerId, out var count)) count.Value = t;
+                else counts[tower.towerId] = new KonFuze(t);
+            }
+        })
+    {
+        _tower = tower;
+    }
+
+    // The counts are stored both directly on AnalyticsKonFuze and again in its nested BasicStats (the
+    // game moved them across in v49), so read whichever is ahead and write to both to keep them in sync.
+    private static IEnumerable<Il2CppSystem.Collections.Generic.Dictionary<string, KonFuze>> Counts(
+        Func<Btd6Player> getPlayer, bool hero)
+    {
+        var analytics = getPlayer().Data.analyticsKonFuze;
+
+        yield return hero ? analytics.heroesPlacedByName : analytics.towersPlacedByBaseName;
+        yield return hero ? analytics.basicStats.heroesPlacedByName : analytics.basicStats.towersPlacedByBaseName;
+    }
+
+    public override string GetId()
+    {
+        return _tower.towerId;
+    }
+}
+
 public class MonkeyKnowledgePlayerDataSetting : NumberPlayerDataSetting
 {
     public MonkeyKnowledgePlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) : base(name, icon, def, getter, setter) { }

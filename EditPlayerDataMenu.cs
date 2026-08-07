@@ -65,6 +65,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     t => GetPlayer().GainTrophies(t - GetPlayer().Data.trophies.ValueInt, "")),
                 new NumberPlayerDataSetting("Games Won", VanillaSprites.ConfettiIcon, 0,
                     () => GetPlayer().Data.completedGame, t => GetPlayer().Data.completedGame = t),
+                StatSetting("Games Played", VanillaSprites.StatsIconAll,
+                    a => a.gamesPlayed, b => b.gamesPlayed),
                 new NumberPlayerDataSetting("Rogue XP", VanillaSprites.RogueXpShopIconLarge, 0,
                     () => GetPlayer().Data.legendsData.rogueLegendXp, t => GetPlayer().Data.legendsData.rogueLegendXp = t),
                 new NumberPlayerDataSetting("Odyssey Stars", VanillaSprites.OdysseyStarIcon, 0,
@@ -182,6 +184,12 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Towers", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
+            "Placed - Towers", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
+            "Placed - Heroes", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
+        },
+        {
             "Powers", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         },
         {
@@ -197,6 +205,18 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             "Online Modes", new List<PlayerDataSetting>() // uses a loop to reduce hard-coded values
         }
     };
+
+    // These counters are stored both directly on AnalyticsKonFuze and again in its nested BasicStats
+    // (the game moved them across in v49), so read whichever is ahead and write to both to keep them in sync.
+    private static NumberPlayerDataSetting StatSetting(string name, string icon,
+        Func<AnalyticsKonFuze, KonFuze> analytics, Func<BasicStats, KonFuze> basic) => new(name, icon, 0,
+        () => Mathf.Max(analytics(GetPlayer().Data.analyticsKonFuze).ValueInt,
+            basic(GetPlayer().Data.analyticsKonFuze.basicStats).ValueInt),
+        t =>
+        {
+            analytics(GetPlayer().Data.analyticsKonFuze).Value = t;
+            basic(GetPlayer().Data.analyticsKonFuze.basicStats).Value = t;
+        });
 
     public static void SerializeAllSettings(FileStream file)
     {
@@ -267,6 +287,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         Settings["Maps"].Clear();
         Settings["Maps - Coop"].Clear();
         Settings["Towers"].Clear();
+        Settings["Placed - Towers"].Clear();
+        Settings["Placed - Heroes"].Clear();
         Settings["Powers"].Clear();
         Settings["Instas"].Clear();
         Settings["Banners"].Clear();
@@ -377,8 +399,15 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                 }));
 
             Settings["Instas"].Add(new InstaMonkeyPlayerDataSetting(tower, GetPlayer));
+
+            if (!tower.IsHero()) Settings["Placed - Towers"].Add(new PlacedPlayerDataSetting(tower, GetPlayer, false));
         }
-        
+
+        foreach (var hero in Game.instance.GetHeroDetailModels())
+        {
+            Settings["Placed - Heroes"].Add(new PlacedPlayerDataSetting(hero, GetPlayer, true));
+        }
+
         foreach (var banner in GameData.Instance.profileBanners.profileBanners)
         {
             var storeItem = GameData.Instance.trophyStoreItems.GetStoreItem(banner.trophyStoreId);
