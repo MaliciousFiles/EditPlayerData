@@ -1,3 +1,5 @@
+<h1 align="center"><b>Please support NK whenever possible. Use this mod only if absolutely necessary. They are incredible devs and gift us with great games <3</b></h1>
+
 <h1 align="center">There is now a <a href="https://discord.gg/qp6jtKCSZp">Discord</a>!</h1>
 
 <h1 align="center">EditPlayerData</h1>
