@@ -190,9 +190,8 @@ public abstract class TypedPlayerDataSetting<T> : PlayerDataSetting
 
 public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
 {
-    public NumberPlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) : base(name, icon, def, getter, setter)
-    {
-    }
+    public NumberPlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter)
+        : base(name, icon, def, getter, setter) {}
 
     private static bool _isShown;
 
@@ -233,6 +232,13 @@ public class NumberPlayerDataSetting : TypedPlayerDataSetting<int>
             PopupScreen.instance.gameObject.GetComponentInChildren<NK_TextMeshProInputField>().characterLimit = 9;
         }
     }
+}
+
+public class KonFuzePlayerDataSetting : NumberPlayerDataSetting
+{
+    public KonFuzePlayerDataSetting(string name, string icon, int def, Func<KonFuze> supplier)
+        : base(name, icon, def, () => supplier().ValueInt, t => supplier().Value = t) {}
+
 }
 
 public class BoolPlayerDataSetting : TypedPlayerDataSetting<bool>
@@ -281,7 +287,8 @@ public class ArtifactPlayerDataSetting : BoolPlayerDataSetting
     private readonly ArtifactModelBase _artifact;
 
     public ArtifactPlayerDataSetting(ArtifactModelBase artifact) : base(
-        LocalizationManager.Instance.Format(artifact.nameLocKey, Rarities[artifact.tier]),
+        LocalizationManager.Instance.Format(artifact.nameLocKey,
+            artifact.tier < Rarities.Length ? Rarities[artifact.tier] : ""),
         "", false, () => Game.Player.Data.legendsData.unlockedStarterArtifacts.Contains(artifact.ArtifactName),
         t =>
         {
@@ -294,7 +301,7 @@ public class ArtifactPlayerDataSetting : BoolPlayerDataSetting
 
     private static readonly string[] Rarities = { "Common", "Rare", "Legendary" };
 
-public override ModHelperImage GetIcon()
+    public override ModHelperImage GetIcon()
     {
         var frame = ModHelperImage.Create(new Info("Icon")
         {
@@ -961,9 +968,9 @@ public class TowerPlayerDataSetting : NumberPlayerDataSetting
     }
 }
 
-public class MonkeyKnowledgePlayerDataSetting : NumberPlayerDataSetting
+public class MonkeyKnowledgePlayerDataSetting : KonFuzePlayerDataSetting
 {
-    public MonkeyKnowledgePlayerDataSetting(string name, string icon, int def, Func<int> getter, Action<int> setter) : base(name, icon, def, getter, setter) { }
+    public MonkeyKnowledgePlayerDataSetting(string name, string icon, int def, Func<KonFuze> supplier) : base(name, icon, def, supplier) { }
     
     protected override ModHelperComponent GetValue()
     {
