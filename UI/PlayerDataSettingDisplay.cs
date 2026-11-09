@@ -63,6 +63,7 @@ internal class PlayerDataSettingDisplay : ModHelperPanel
     {
         setting.ReloadVisuals = () =>
         {
+            EditPlayerData.SaveProfile();
             SetSetting(setting);
         };
         
@@ -74,7 +75,7 @@ internal class PlayerDataSettingDisplay : ModHelperPanel
         {
             if (!setting.IsUnlocked()) return;
             setting.ResetToDefault();
-            Game.instance.playerService.Player.Save();
+            EditPlayerData.SaveProfile();
         });
     }
 }

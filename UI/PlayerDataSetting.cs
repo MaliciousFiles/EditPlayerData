@@ -12,6 +12,7 @@ using HarmonyLib;
 using Il2Cpp;
 using Il2CppAssets.Scripts.Data;
 using Il2CppAssets.Scripts.Data.MapSets;
+using Il2CppAssets.Scripts.Data.Store;
 using Il2CppAssets.Scripts.Models.Artifacts;
 using Il2CppAssets.Scripts.Models.Powers;
 using Il2CppAssets.Scripts.Models.Profile;
@@ -23,6 +24,7 @@ using Il2CppAssets.Scripts.Unity.Player;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Utils;
 using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Il2CppNinjaKiwi.Common;
 using Il2CppNinjaKiwi.Localization;
 using Il2CppTMPro;
@@ -334,14 +336,27 @@ public class PurchasePlayerDataSetting : BoolPlayerDataSetting
         t =>
         {
             if (t) AddOneTimePurchaseItem(id, from);
-            else Game.Player.Data.purchase.RemoveOneTimePurchaseItem(id);
+            else
+            {
+                Game.Player.Data.purchase.RemoveOneTimePurchaseItem(new Il2CppStringArray(new[] {id}));
+            }
         })
     {
         _id = id;
     }
 
-    public PurchasePlayerDataSetting(string name, string icon, string id, Func<bool> getter, Action<bool> setter) : base(
-        name, icon, false, getter, setter)
+    public PurchasePlayerDataSetting(string name, string icon, string id, LootFrom from, Action<bool> setter) : base(
+        name, icon, false,
+        () => Game.Player.Data.purchase.HasMadeOneTimePurchase(id),
+        t =>
+        {
+            if (t) AddOneTimePurchaseItem(id, from);
+            else
+            {
+                Game.Player.Data.purchase.RemoveOneTimePurchaseItem(new Il2CppStringArray(new[] {id}));
+            }
+            setter(t);
+        })
     {
         _id = id;
     }

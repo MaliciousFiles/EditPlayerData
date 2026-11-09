@@ -52,12 +52,12 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             {
                 new PurchasePlayerDataSetting("Unlocked Double Cash", VanillaSprites.DoubleCashModeShop, "btd6_doublecashmode", LootFrom.iap),
                 new PurchasePlayerDataSetting("Unlocked Fast Track", VanillaSprites.FastTrackModeIcon,
-                    "btd6_fasttrackpack",
-                    () => GetPlayer().Data.unlockedFastTrack,
+                    "btd6_fasttrackpack", LootFrom.iap,
                     t => GetPlayer().Data.unlockedFastTrack = t),
-                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendRogueShop, "btd6_legendsrogue", LootFrom.legendFeat),
-                new PurchasePlayerDataSetting("Unlocked Frontier Legends", VanillaSprites.LegendFrontierShop, "btd6_legendsfrontier", LootFrom.legendFeat),
-                new PurchasePlayerDataSetting("Unlocked Map Editor", VanillaSprites.MapEditorBtn, "btd6_mapeditorsupporter_new", LootFrom.iap),
+                new PurchasePlayerDataSetting("Unlocked Rogue Legends", VanillaSprites.LegendRogueShop, "btd6_legendsrogue", LootFrom.iap),
+                new PurchasePlayerDataSetting("Unlocked Frontier Legends", VanillaSprites.LegendFrontierShop, "btd6_legendsfrontier", LootFrom.iap),
+                new PurchasePlayerDataSetting("Unlocked Map Editor", VanillaSprites.MapEditorBtn, "btd6_mapeditorsupporter_new", LootFrom.iap,
+                    t => GetPlayer().Data.hasUnlockedMapEditor = t),
                 new KonFuzePlayerDataSetting("Monkey Money", VanillaSprites.MonkeyMoneyShop, 0,
                     () => GetPlayer().Data.monkeyMoney),
                 new MonkeyKnowledgePlayerDataSetting("Monkey Knowledge", VanillaSprites.KnowledgeIcon, 0,
@@ -450,7 +450,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
         foreach (var tower in Game.instance.GetTowerDetailModels())
         {
-            if (tower.towerId == "Sheriff") continue;
+            if (tower.towerId == "Sheriff" || tower.towerId.StartsWith("PowersInShop")) continue;
             
             Settings["Towers"].Add(new TowerPlayerDataSetting(tower, GetPlayer).Unlockable(
                 () => !data.unlockedTowers.Contains(tower.towerId),
@@ -771,12 +771,12 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
         
         _topArea.AddPanel(new Info("Spacing", InfoPreset.Flex));
         
-        _topArea.AddButton(new Info("UnlockAll", 650, 200), VanillaSprites.GreenBtnLong, new Action(() =>
+        _topArea.AddButton(new Info("UnlockAll", 550, 200), VanillaSprites.GreenBtnLong, new Action(() =>
         {
             ActiveSettings.ForEach(s=>s.Unlock());
             UpdateVisibleEntries();
-        })).AddText(new Info("UnlockAllText", 650, 200), "Unlock All", 60);
-        _topArea.AddButton(new Info("SetAll", 650, 200), VanillaSprites.GreenBtnLong, new Action(() =>
+        })).AddText(new Info("UnlockAllText", 550, 200), "Unlock All", 60);
+        _topArea.AddButton(new Info("SetAll", 550, 200), VanillaSprites.GreenBtnLong, new Action(() =>
         {
             PopupScreen.instance.SafelyQueue(screen =>
             {
@@ -820,8 +820,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
                     }
                 }
             });
-        })).AddText(new Info("SetAllText", 650, 200), "Set All", 60);
-        _topArea.AddPanel(new Info("Special Button Filler", 650, 200));
+        })).AddText(new Info("SetAllText", 550, 200), "Set All", 60);
+        _topArea.AddPanel(new Info("Special Button Filler", 550, 200));
 
         // for no discernible reason, this defaults to 300
         GameMenu.scrollRect.scrollSensitivity = 50;
@@ -834,7 +834,7 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     {
         _isOpen = false;
         
-        Game.Player.SaveNow();
+        EditPlayerData.SaveProfile();
         _category = "General";
     }
 
@@ -852,6 +852,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 
     private void UpdateVisibleEntries()
     {
+        EditPlayerData.SaveProfile();
+        
         var anyUnlockable = ActiveSettings.Any(s => !s.IsUnlocked());
         _topArea.GetDescendent<ModHelperButton>("UnlockAll")?.SetActive(anyUnlockable);
 

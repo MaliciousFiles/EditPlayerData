@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using BTD_Mod_Helper.Extensions;
 using EditPlayerData;
 using HarmonyLib;
 using Il2CppAssets.Scripts.Models.Profile;
+using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
 using Il2CppAssets.Scripts.Unity.UI_New.Settings;
 using Il2CppAssets.Scripts.Utils;
@@ -91,6 +93,7 @@ public class EditPlayerData : BloonsTD6Mod
                                 try
                                 {
                                     EditPlayerDataMenu.DeserializeAllSettings(Path.Join("EditPlayerData", dropdown!.Text.Text.text + ".json"));
+                                    SaveProfile();
                                     screen.ShowOkPopup("Settings successfully loaded from file.");
                                 }
                                 catch
@@ -177,5 +180,34 @@ public class EditPlayerData : BloonsTD6Mod
             texts.AddText(new Info("Text", 500, 100), "Player Data", 80).Text.alignment = TextAlignmentOptions.Center;
             texts.AddText(new Info("Text", 500, 100), "Export", 80).Text.alignment = TextAlignmentOptions.Center;
         }
+    }
+
+    public static void RunSync(IEnumerator enumerator)
+    {
+        while (enumerator.MoveNext())
+        {
+            var current = enumerator.Current;
+
+            switch (current)
+            {
+                case IEnumerator nestedEnumerator:
+                    RunSync(nestedEnumerator);
+                    break;
+                case Task task:
+                    task.GetAwaiter().GetResult();
+                    break;
+            }
+        }
+    }
+
+    public static void SaveProfile()
+    {
+        // Game.Player.IsPendingSave = true;
+        // Game.instance.playerService.FlushSaveAndSync().GetAwaiter().GetResult();
+        Game.instance.playerService.MarkDirty();
+        Game.Player.IsPendingSync = true;
+        Game.Player.IsPendingSave = true;
+        Game.instance.playerService.FlushSaveAndSync();
+        Game.Player.SaveAndSync();
     }
 }
