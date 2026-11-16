@@ -429,6 +429,20 @@ public class MapPlayerDataSetting : PlayerDataSetting
         {
             Width = 325, Height = 325 * MapIconWidthToHeightRatio
         }, Icon);
+        
+        if (Game.Player.Data.mapInfo.GetBestSocialRound(_details.id, out var difficulty, out var round))
+        {
+            var bestRound = image.AddPanel(new Info("BestRound")
+            {
+                X = mask.RectTransform.rect.width/2-15,
+                Y = mask.RectTransform.rect.height/2-30,
+            }, null, null);
+            bestRound.AddImage(new Info("Medal", 150), $"MapMedals[Medal{MEDALS[difficulty]}]");
+            bestRound.AddText(new Info("Label", 575)
+            {
+                Y = 18
+            }, round.ToString(), 60);
+        }
 
         return image;
     }
@@ -452,6 +466,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
                     var mode = Difficulties[difficulty][int.Parse(row.name.Split("/")[1])];
 
                     var wins = int.Parse(row.GetDescendent<ModHelperInputField>("WinCount").CurrentValue[..^1]);
+                    var bestRound = int.Parse(row.GetDescendent<ModHelperInputField>("BestRound").CurrentValue[..^1]);
                     var noExit = row.GetDescendent<ModHelperCheckbox>("NoExit").CurrentValue;
 
 
@@ -466,6 +481,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
                                      .GetOrCreateMode(mode, _coop))) 
                     {
                         mapMode.timesCompleted = wins;
+                        mapMode.bestRound = bestRound;
                         mapMode.completedWithoutLoadingSave = noExit;
                     }
                 }
@@ -475,15 +491,16 @@ public class MapPlayerDataSetting : PlayerDataSetting
             Popup.TransitionAnim.Scale, PopupScreen.BackGround.Grey).WaitForCompletion().FindObject("Layout");
         
         settings = popup.AddModHelperComponent(ModHelperTable.Create(
-            new Info("MapSettings", 1750, 700), 3,
-            VanillaSprites.InsertPanelWhiteRound, 80, new[] { 3, 2, 2 },
+            new Info("MapSettings", 1750, 700), 4,
+            VanillaSprites.InsertPanelWhiteRound, 70, new[] { 5, 4, 4, 4 },
             60, 150, new RectOffset { top = 22, left = 35, right = 35 }));
 
         settings.Background.color = new Color(0.29f, 0.51f, 0.81f);
         settings.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
 
-        settings.SetValue(0, 1, ModHelperText.Create(new Info("Text"), "Wins", 75));
-        settings.SetValue(0, 2, ModHelperText.Create(new Info("Text"), "Exitless", 75));
+        settings.SetValue(0, 1, ModHelperText.Create(new Info("Text"), "Wins", 65));
+        settings.SetValue(0, 2, ModHelperText.Create(new Info("Text"), "Best Round", 65));
+        settings.SetValue(0, 3, ModHelperText.Create(new Info("Text"), "Exitless", 65));
 
         ModHelperInputField? selectedInput = null;
         tabListener = c =>
@@ -530,7 +547,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
                 var medal = ModHelperPanel.Create(new Info("MedalAndName", InfoPreset.Flex),
                     layoutAxis: RectTransform.Axis.Horizontal, spacing: 5);
                 medal.AddText(new Info("Name", InfoPreset.Flex),
-                    LocalizationManager.Instance.Format(modeName), k == 0 ? 65 : 50);
+                    LocalizationManager.Instance.Format(modeName), k == 0 ? 65 : 45);
                 var medalImage = medal.AddImage(new Info("Medal", k == 0 ? 135 : 125), $"MapMedals[Medal{medalName}]");
 
                 var input = ModHelperInputField.Create(new Info("WinCount"),
@@ -547,9 +564,13 @@ public class MapPlayerDataSetting : PlayerDataSetting
                 
                 settings.SetValue(row, 0, medal);
                 settings.SetValue(row, 1, input);
+                
+                settings.SetValue(row, 2, ModHelperInputField.Create(new Info("BestRound"),
+                    modeInfo.bestRound.ToString(), VanillaSprites.BlueInsertPanelRound, null,
+                    60, TMP_InputField.CharacterValidation.Digit));
 
                 var isClicks = k > 0 && chimps;
-                settings.SetValue(row, 2, ModHelperCheckbox.Create(new Info("NoExit", 100),
+                settings.SetValue(row, 3, ModHelperCheckbox.Create(new Info("NoExit", 100),
                     modeInfo.completedWithoutLoadingSave, VanillaSprites.SmallSquareDarkInner,
                     new Action<bool>(b =>
                     {
@@ -599,6 +620,19 @@ public class MapPlayerDataSetting : PlayerDataSetting
             "Press TAB to navigate quickly!", 50));
         text.Text.font = Fonts.Btd6FontBody;
         text.transform.MoveAfterSibling(popup.FindObject("Body").transform, true);
+    }
+
+    private static readonly Dictionary<string, string> MEDALS = new()
+    {
+        { "Easy", "Bronze" },
+        { "Medium", "Silver" },
+        { "Hard", "Gold" },
+        { "Impoppable", "Impoppable" }
+    };
+
+    private static string MedalPanelName(string difficulty)
+    {
+        return $"{(difficulty == "Impoppable" ? "Hard" : difficulty)}/{MEDALS[difficulty]}";
     }
     
     protected override ModHelperComponent GetValue()
@@ -650,6 +684,7 @@ public class MapPlayerDataSetting : PlayerDataSetting
             foreach (var mode in _coop ? difficulty.Value.coopModes : difficulty.Value.modes)
             {
                 mode.Value.timesCompleted = 0;
+                mode.Value.bestRound = 0;
                 mode.Value.completedWithoutLoadingSave = false;
             }
         }
